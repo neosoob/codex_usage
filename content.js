@@ -327,11 +327,43 @@ function createOverlay() {
         background: #ececec;
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
         overflow: hidden;
-        transition: width 140ms ease;
       }
-      #${OVERLAY_ID}:hover .cu-shell,
-      #${OVERLAY_ID}:focus-within .cu-shell {
+      #${OVERLAY_ID}.is-expanded .cu-shell {
         width: 296px;
+      }
+      #${OVERLAY_ID} .cu-header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-bottom: 1px solid #d1d1d1;
+        background: #ececec;
+      }
+      #${OVERLAY_ID} .cu-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #363636;
+      }
+      #${OVERLAY_ID} .cu-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border: 1px solid #c6c6c6;
+        border-radius: 4px;
+        background: #f6f6f6;
+        color: #444;
+        cursor: pointer;
+        padding: 0;
+      }
+      #${OVERLAY_ID} .cu-toggle:hover {
+        background: #fff;
+      }
+      #${OVERLAY_ID} .cu-toggle svg {
+        width: 12px;
+        height: 12px;
       }
       #${OVERLAY_ID} .cu-mini {
         display: grid;
@@ -373,16 +405,12 @@ function createOverlay() {
         font-variant-numeric: tabular-nums;
       }
       #${OVERLAY_ID} .cu-details {
-        max-height: 0;
-        overflow: hidden;
-        border-top: 1px solid transparent;
+        display: none;
+        border-top: 1px solid #d1d1d1;
         background: #f6f6f6;
-        transition: max-height 140ms ease, border-color 140ms ease;
       }
-      #${OVERLAY_ID}:hover .cu-details,
-      #${OVERLAY_ID}:focus-within .cu-details {
-        max-height: 240px;
-        border-top-color: #d1d1d1;
+      #${OVERLAY_ID}.is-expanded .cu-details {
+        display: block;
       }
       #${OVERLAY_ID} .cu-details-inner {
         padding: 10px;
@@ -441,7 +469,15 @@ function createOverlay() {
         cursor: default;
       }
     </style>
-    <div class="cu-shell" tabindex="0">
+    <div class="cu-shell">
+      <div class="cu-header">
+        <span class="cu-title">Codex余额</span>
+        <button type="button" class="cu-toggle" id="cu-toggle" aria-label="展开详情" aria-expanded="false">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M3.5 6.5L8 11l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </button>
+      </div>
       <div class="cu-mini">
         <span class="cu-label">5h</span>
         <span class="cu-remaining" id="cu-short-mini">--</span>
@@ -477,6 +513,15 @@ function createOverlay() {
   `;
 
   document.documentElement.appendChild(root);
+
+  const toggleButton = root.querySelector("#cu-toggle");
+  toggleButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const expanded = root.classList.toggle("is-expanded");
+    toggleButton.setAttribute("aria-expanded", String(expanded));
+    toggleButton.setAttribute("aria-label", expanded ? "收起详情" : "展开详情");
+  });
 
   const detailButton = root.querySelector("#cu-detail");
   detailButton.addEventListener("click", (event) => {
