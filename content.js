@@ -344,7 +344,7 @@ function createOverlay() {
       }
       #${OVERLAY_ID} .cu-row {
         display: grid;
-        grid-template-columns: 1fr auto auto;
+        grid-template-columns: minmax(0, 1fr) 46px 92px;
         align-items: center;
         column-gap: 8px;
       }
@@ -401,6 +401,10 @@ function createOverlay() {
       #${OVERLAY_ID} .cu-row .cu-remaining {
         font-size: 16px;
         font-weight: 700;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      #${OVERLAY_ID} .cu-row .cu-reset {
         text-align: right;
         font-variant-numeric: tabular-nums;
       }
