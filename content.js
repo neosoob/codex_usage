@@ -9,7 +9,6 @@ const IFRAME_TIMEOUT_MS = 15000;
 let snapshotCache = null;
 let inflightPromise = null;
 let overlayInitialized = false;
-let iframePromise = null;
 
 function normalizeSpace(value) {
   return (value || "").replace(/\s+/g, " ").trim();
@@ -70,8 +69,8 @@ function parseUsageDocument(doc) {
   const shortCard = findCardByTitle(doc, /^(?:5\s*小时使用限额|5-hour usage limit|5 hour usage limit)$/i);
   const weeklyCard = findCardByTitle(doc, /^(?:每周使用限额|weekly usage limit)$/i);
 
-  const shortTerm = parseCard(shortCard, "5 小时使用限额");
-  const weekly = parseCard(weeklyCard, "每周使用限额");
+  const shortTerm = parseCard(shortCard, "5h");
+  const weekly = parseCard(weeklyCard, "Weekly");
 
   return {
     scannedAt: new Date().toISOString(),
@@ -171,7 +170,6 @@ function waitForUsageDom(iframe, timeoutMs) {
       }
 
       tryResolve();
-
       if (settled) {
         return;
       }
@@ -209,8 +207,8 @@ function waitForUsageDom(iframe, timeoutMs) {
       cleanup();
       try {
         const partial = parseUsageDocument(iframe.contentDocument || document);
-        reject(new Error(`usage 页面超时，短周期=${partial.shortTerm.remaining || "--"}，每周=${partial.weekly.remaining || "--"}`));
-      } catch (error) {
+        reject(new Error(`usage 页面超时，5h=${partial.shortTerm.remaining || "--"}，Weekly=${partial.weekly.remaining || "--"}`));
+      } catch (_error) {
         reject(new Error("usage 页面加载超时"));
       }
     }, timeoutMs);
@@ -223,7 +221,7 @@ async function fetchUsageSnapshotFromIframe(forceRefresh) {
   const iframe = getOrCreateIframe();
 
   if (forceRefresh) {
-    iframe.src = `${USAGE_URL}${USAGE_URL.includes("?") ? "&" : "?"}_=${Date.now()}`;
+    iframe.src = `${USAGE_URL}?_=${Date.now()}`;
   }
 
   const snapshot = await waitForUsageDom(iframe, IFRAME_TIMEOUT_MS);
@@ -244,13 +242,7 @@ async function fetchUsageSnapshot(forceRefresh = false) {
     return inflightPromise;
   }
 
-  inflightPromise = (async () => {
-    try {
-      return await fetchUsageSnapshotFromIframe(forceRefresh);
-    } finally {
-      iframePromise = null;
-    }
-  })();
+  inflightPromise = fetchUsageSnapshotFromIframe(forceRefresh);
 
   try {
     return await inflightPromise;
@@ -261,6 +253,30 @@ async function fetchUsageSnapshot(forceRefresh = false) {
 
 function isChatPage() {
   return location.hostname.endsWith("chatgpt.com") && !location.pathname.startsWith("/codex/settings/usage");
+}
+
+function compactReset(value) {
+  if (!value) {
+    return "--";
+  }
+
+  const normalized = normalizeSpace(value);
+  const shortTimeMatch = normalized.match(/(\d{1,2}:\d{2}(?:\s*[AP]M)?)$/i);
+  if (shortTimeMatch) {
+    return shortTimeMatch[1].toUpperCase();
+  }
+
+  const dateMatch = normalized.match(/(\d{4}年\d{1,2}月\d{1,2}日)/);
+  if (dateMatch) {
+    return dateMatch[1].replace("年", "-").replace("月", "-").replace("日", "");
+  }
+
+  const monthDayMatch = normalized.match(/([A-Z][a-z]{2}\s+\d{1,2})/);
+  if (monthDayMatch) {
+    return monthDayMatch[1];
+  }
+
+  return normalized;
 }
 
 function createOverlay() {
@@ -274,110 +290,114 @@ function createOverlay() {
     <style>
       #${OVERLAY_ID} {
         position: fixed;
-        right: 20px;
-        bottom: 20px;
+        right: 18px;
+        bottom: 18px;
         z-index: 2147483647;
-        font-family: "Segoe UI", "PingFang SC", sans-serif;
-        color: #1d1a16;
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: #2c2c2c;
       }
       #${OVERLAY_ID} .cu-shell {
-        width: 164px;
-        border: 1px solid rgba(152, 102, 72, 0.35);
-        border-radius: 16px;
-        background: linear-gradient(180deg, rgba(255, 248, 240, 0.98), rgba(245, 231, 220, 0.95));
-        box-shadow: 0 12px 35px rgba(76, 44, 22, 0.18);
+        width: 180px;
+        border: 1px solid #cfcfcf;
+        border-radius: 6px;
+        background: #ececec;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
         overflow: hidden;
-        transition: width 180ms ease, transform 180ms ease;
-        backdrop-filter: blur(10px);
+        transition: width 160ms ease, background 160ms ease;
       }
       #${OVERLAY_ID}:hover .cu-shell,
       #${OVERLAY_ID}:focus-within .cu-shell {
         width: 296px;
-        transform: translateY(-2px);
+        background: #f3f3f3;
       }
-      #${OVERLAY_ID} .cu-summary {
-        display: flex;
+      #${OVERLAY_ID} .cu-mini,
+      #${OVERLAY_ID} .cu-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
         align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
+        column-gap: 8px;
       }
-      #${OVERLAY_ID} .cu-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        background: #a33f1f;
-        box-shadow: 0 0 0 4px rgba(163, 63, 31, 0.14);
-        flex: 0 0 auto;
-      }
-      #${OVERLAY_ID} .cu-title {
+      #${OVERLAY_ID} .cu-mini {
+        padding: 6px 10px;
         font-size: 12px;
-        color: #6e655a;
+        line-height: 1.2;
       }
-      #${OVERLAY_ID} .cu-values {
-        margin-left: auto;
-        text-align: right;
-        font-size: 12px;
-        font-weight: 700;
+      #${OVERLAY_ID} .cu-mini + .cu-mini {
+        border-top: 1px solid #d8d8d8;
+      }
+      #${OVERLAY_ID} .cu-label {
+        font-weight: 500;
+        color: #303030;
+      }
+      #${OVERLAY_ID} .cu-remaining {
+        font-weight: 500;
+        color: #303030;
+      }
+      #${OVERLAY_ID} .cu-reset {
+        color: #5f5f5f;
+        white-space: nowrap;
       }
       #${OVERLAY_ID} .cu-details {
         max-height: 0;
         overflow: hidden;
-        padding: 0 12px;
-        transition: max-height 180ms ease, padding 180ms ease;
         border-top: 1px solid transparent;
+        transition: max-height 160ms ease, border-color 160ms ease;
+        background: #fafafa;
       }
       #${OVERLAY_ID}:hover .cu-details,
       #${OVERLAY_ID}:focus-within .cu-details {
         max-height: 220px;
-        padding: 12px;
-        border-top-color: rgba(152, 102, 72, 0.2);
+        border-top-color: #d8d8d8;
+      }
+      #${OVERLAY_ID} .cu-details-inner {
+        padding: 10px;
+      }
+      #${OVERLAY_ID} .cu-row {
+        padding: 6px 0;
+        font-size: 13px;
       }
       #${OVERLAY_ID} .cu-row + .cu-row {
-        margin-top: 10px;
+        border-top: 1px solid #e6e6e6;
       }
-      #${OVERLAY_ID} .cu-label {
+      #${OVERLAY_ID} .cu-row .cu-label {
         font-size: 12px;
-        color: #6e655a;
+        color: #5f5f5f;
       }
-      #${OVERLAY_ID} .cu-main {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        margin-top: 2px;
-      }
-      #${OVERLAY_ID} .cu-main strong {
-        font-size: 22px;
-        color: #a33f1f;
+      #${OVERLAY_ID} .cu-row .cu-remaining {
+        font-size: 18px;
+        font-weight: 600;
       }
       #${OVERLAY_ID} .cu-foot {
-        margin-top: 10px;
+        margin-top: 8px;
         font-size: 11px;
-        color: #7f7569;
+        color: #777;
       }
     </style>
     <div class="cu-shell" tabindex="0">
-      <div class="cu-summary">
-        <span class="cu-dot"></span>
-        <div>
-          <div class="cu-title">Codex 余额</div>
-          <div class="cu-title" id="cu-status">读取中...</div>
-        </div>
-        <div class="cu-values">
-          <div id="cu-short-mini">5h --</div>
-          <div id="cu-weekly-mini">周 --</div>
-        </div>
+      <div class="cu-mini">
+        <span class="cu-label">5h</span>
+        <span class="cu-remaining" id="cu-short-mini">--</span>
+        <span class="cu-reset" id="cu-short-mini-reset">--</span>
+      </div>
+      <div class="cu-mini">
+        <span class="cu-label">Weekly</span>
+        <span class="cu-remaining" id="cu-weekly-mini">--</span>
+        <span class="cu-reset" id="cu-weekly-mini-reset">--</span>
       </div>
       <div class="cu-details">
-        <div class="cu-row">
-          <div class="cu-label">5 小时使用限额</div>
-          <div class="cu-main"><strong id="cu-short">--</strong><span id="cu-short-reset">重置时间：--</span></div>
+        <div class="cu-details-inner">
+          <div class="cu-row">
+            <span class="cu-label">5 小时使用限额</span>
+            <span class="cu-remaining" id="cu-short">--</span>
+            <span class="cu-reset" id="cu-short-reset">--</span>
+          </div>
+          <div class="cu-row">
+            <span class="cu-label">每周使用限额</span>
+            <span class="cu-remaining" id="cu-weekly">--</span>
+            <span class="cu-reset" id="cu-weekly-reset">--</span>
+          </div>
+          <div class="cu-foot" id="cu-foot">读取中...</div>
         </div>
-        <div class="cu-row">
-          <div class="cu-label">每周使用限额</div>
-          <div class="cu-main"><strong id="cu-weekly">--</strong><span id="cu-weekly-reset">重置时间：--</span></div>
-        </div>
-        <div class="cu-foot" id="cu-foot">悬停查看详情</div>
       </div>
     </div>
   `;
@@ -394,26 +414,35 @@ function updateOverlay(snapshot, errorMessage) {
   const root = createOverlay();
   const shortMini = root.querySelector("#cu-short-mini");
   const weeklyMini = root.querySelector("#cu-weekly-mini");
+  const shortMiniReset = root.querySelector("#cu-short-mini-reset");
+  const weeklyMiniReset = root.querySelector("#cu-weekly-mini-reset");
   const short = root.querySelector("#cu-short");
   const weekly = root.querySelector("#cu-weekly");
   const shortReset = root.querySelector("#cu-short-reset");
   const weeklyReset = root.querySelector("#cu-weekly-reset");
   const foot = root.querySelector("#cu-foot");
-  const status = root.querySelector("#cu-status");
 
   if (errorMessage) {
-    status.textContent = errorMessage;
-    foot.textContent = "无法从 usage 页面读取余额。";
+    shortMini.textContent = "--";
+    weeklyMini.textContent = "--";
+    shortMiniReset.textContent = "--";
+    weeklyMiniReset.textContent = "--";
+    short.textContent = "--";
+    weekly.textContent = "--";
+    shortReset.textContent = "--";
+    weeklyReset.textContent = "--";
+    foot.textContent = errorMessage;
     return;
   }
 
-  status.textContent = "来自登录态 usage 页面";
-  shortMini.textContent = `5h ${snapshot.shortTerm.remaining || "--"}`;
-  weeklyMini.textContent = `周 ${snapshot.weekly.remaining || "--"}`;
+  shortMini.textContent = snapshot.shortTerm.remaining || "--";
+  weeklyMini.textContent = snapshot.weekly.remaining || "--";
+  shortMiniReset.textContent = compactReset(snapshot.shortTerm.resetAt);
+  weeklyMiniReset.textContent = compactReset(snapshot.weekly.resetAt);
   short.textContent = snapshot.shortTerm.remaining || "--";
   weekly.textContent = snapshot.weekly.remaining || "--";
-  shortReset.textContent = `重置时间：${snapshot.shortTerm.resetAt || "--"}`;
-  weeklyReset.textContent = `重置时间：${snapshot.weekly.resetAt || "--"}`;
+  shortReset.textContent = snapshot.shortTerm.resetAt || "--";
+  weeklyReset.textContent = snapshot.weekly.resetAt || "--";
   foot.textContent = `更新于 ${new Date(snapshot.scannedAt).toLocaleString("zh-CN")}`;
 }
 
