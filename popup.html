@@ -1,0 +1,50 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Codex Usage Checker</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="hero">
+        <p class="eyebrow">Codex</p>
+        <h1>剩余用量</h1>
+        <p class="subtle">从当前打开的 OpenAI 页面里抓取可见用量信息。</p>
+      </section>
+
+      <section class="stats">
+        <article class="card">
+          <span class="label">剩余</span>
+          <strong id="remaining">--</strong>
+        </article>
+        <article class="card">
+          <span class="label">已用 / 总量</span>
+          <strong id="usagePair">--</strong>
+        </article>
+        <article class="card">
+          <span class="label">重置</span>
+          <strong id="resetAt">--</strong>
+        </article>
+      </section>
+
+      <section class="panel">
+        <p id="status" class="status">准备扫描当前页面…</p>
+        <button id="refresh" class="refresh" type="button">重新扫描</button>
+      </section>
+
+      <section class="panel">
+        <h2>命中线索</h2>
+        <ul id="hints" class="list"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>页面文本片段</h2>
+        <ul id="lines" class="list"></ul>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
