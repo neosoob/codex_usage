@@ -266,9 +266,10 @@ function compactReset(value) {
     return shortTimeMatch[1].toUpperCase();
   }
 
-  const dateMatch = normalized.match(/(\d{4}年\d{1,2}月\d{1,2}日)/);
-  if (dateMatch) {
-    return dateMatch[1].replace("年", "-").replace("月", "-").replace("日", "");
+  const chineseDateMatch = normalized.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  if (chineseDateMatch) {
+    const [, year, month, day] = chineseDateMatch;
+    return `${year}/${month}/${day}`;
   }
 
   const monthDayMatch = normalized.match(/([A-Z][a-z]{2}\s+\d{1,2})/);
@@ -290,25 +291,24 @@ function createOverlay() {
     <style>
       #${OVERLAY_ID} {
         position: fixed;
-        right: 18px;
-        bottom: 18px;
+        right: 12px;
+        bottom: 12px;
         z-index: 2147483647;
         font-family: "Segoe UI", Arial, sans-serif;
-        color: #2c2c2c;
+        color: #333;
       }
       #${OVERLAY_ID} .cu-shell {
         width: 180px;
-        border: 1px solid #cfcfcf;
-        border-radius: 6px;
+        border: 1px solid #c7c7c7;
+        border-radius: 8px;
         background: #ececec;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
         overflow: hidden;
-        transition: width 160ms ease, background 160ms ease;
+        transition: width 140ms ease;
       }
       #${OVERLAY_ID}:hover .cu-shell,
       #${OVERLAY_ID}:focus-within .cu-shell {
         width: 296px;
-        background: #f3f3f3;
       }
       #${OVERLAY_ID} .cu-mini,
       #${OVERLAY_ID} .cu-row {
@@ -318,59 +318,81 @@ function createOverlay() {
         column-gap: 8px;
       }
       #${OVERLAY_ID} .cu-mini {
-        padding: 6px 10px;
+        padding: 7px 10px;
         font-size: 12px;
-        line-height: 1.2;
+        line-height: 1.1;
       }
       #${OVERLAY_ID} .cu-mini + .cu-mini {
-        border-top: 1px solid #d8d8d8;
+        border-top: 1px solid #d1d1d1;
       }
       #${OVERLAY_ID} .cu-label {
-        font-weight: 500;
-        color: #303030;
+        font-weight: 600;
+        color: #363636;
       }
       #${OVERLAY_ID} .cu-remaining {
         font-weight: 500;
-        color: #303030;
+        color: #363636;
       }
       #${OVERLAY_ID} .cu-reset {
-        color: #5f5f5f;
+        color: #666;
         white-space: nowrap;
       }
       #${OVERLAY_ID} .cu-details {
         max-height: 0;
         overflow: hidden;
         border-top: 1px solid transparent;
-        transition: max-height 160ms ease, border-color 160ms ease;
-        background: #fafafa;
+        background: #f6f6f6;
+        transition: max-height 140ms ease, border-color 140ms ease;
       }
       #${OVERLAY_ID}:hover .cu-details,
       #${OVERLAY_ID}:focus-within .cu-details {
-        max-height: 220px;
-        border-top-color: #d8d8d8;
+        max-height: 240px;
+        border-top-color: #d1d1d1;
       }
       #${OVERLAY_ID} .cu-details-inner {
         padding: 10px;
       }
       #${OVERLAY_ID} .cu-row {
-        padding: 6px 0;
+        padding: 10px 0;
         font-size: 13px;
       }
       #${OVERLAY_ID} .cu-row + .cu-row {
-        border-top: 1px solid #e6e6e6;
+        border-top: 1px solid #e0e0e0;
       }
       #${OVERLAY_ID} .cu-row .cu-label {
-        font-size: 12px;
-        color: #5f5f5f;
+        font-size: 13px;
+        font-weight: 500;
       }
       #${OVERLAY_ID} .cu-row .cu-remaining {
-        font-size: 18px;
-        font-weight: 600;
+        font-size: 16px;
+        font-weight: 700;
       }
       #${OVERLAY_ID} .cu-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
         margin-top: 8px;
         font-size: 11px;
         color: #777;
+      }
+      #${OVERLAY_ID} .cu-refresh {
+        flex: 0 0 auto;
+        border: 1px solid #c6c6c6;
+        border-radius: 4px;
+        background: #f6f6f6;
+        color: #444;
+        font-size: 11px;
+        line-height: 1;
+        padding: 4px 6px;
+        cursor: pointer;
+      }
+      #${OVERLAY_ID} .cu-refresh:hover {
+        background: #fff;
+      }
+      #${OVERLAY_ID} .cu-refresh:disabled {
+        opacity: 0.6;
+        cursor: default;
       }
     </style>
     <div class="cu-shell" tabindex="0">
@@ -396,13 +418,29 @@ function createOverlay() {
             <span class="cu-remaining" id="cu-weekly">--</span>
             <span class="cu-reset" id="cu-weekly-reset">--</span>
           </div>
-          <div class="cu-foot" id="cu-foot">读取中...</div>
+          <div class="cu-foot">
+            <span id="cu-foot">读取中...</span>
+            <button type="button" class="cu-refresh" id="cu-refresh">刷新</button>
+          </div>
         </div>
       </div>
     </div>
   `;
 
   document.documentElement.appendChild(root);
+  const refreshButton = root.querySelector("#cu-refresh");
+  refreshButton.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    refreshButton.disabled = true;
+    refreshButton.textContent = "刷新中";
+    try {
+      await refreshOverlay(true);
+    } finally {
+      refreshButton.disabled = false;
+      refreshButton.textContent = "刷新";
+    }
+  });
   return root;
 }
 
