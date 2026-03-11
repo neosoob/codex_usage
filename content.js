@@ -289,6 +289,20 @@ function formatDateReset(value) {
   return formatTimeReset(normalized);
 }
 
+function formatDetailReset(value) {
+  if (!value) {
+    return "--";
+  }
+
+  const normalized = normalizeSpace(value);
+  const match = normalized.match(/(?:\d{4}年)?(\d{1,2}月\d{1,2}日(?:\s+\d{1,2}:\d{2})?)/);
+  if (match) {
+    return match[1];
+  }
+
+  return normalized.replace(/^\d{4}年/, "");
+}
+
 function createOverlay() {
   if (document.getElementById(OVERLAY_ID)) {
     return document.getElementById(OVERLAY_ID);
@@ -506,7 +520,7 @@ function updateOverlay(snapshot, errorMessage) {
   short.textContent = snapshot.shortTerm.remaining || "--";
   weekly.textContent = snapshot.weekly.remaining || "--";
   shortReset.textContent = snapshot.shortTerm.resetAt || "--";
-  weeklyReset.textContent = snapshot.weekly.resetAt || "--";
+  weeklyReset.textContent = formatDetailReset(snapshot.weekly.resetAt);
   foot.textContent = `更新于 ${new Date(snapshot.scannedAt).toLocaleString("zh-CN")}`;
 }
 
