@@ -377,6 +377,12 @@ function createOverlay() {
         width: 12px;
         height: 12px;
       }
+      #${OVERLAY_ID} .cu-mini-wrap {
+        background: #fff;
+      }
+      #${OVERLAY_ID}.is-expanded .cu-mini-wrap {
+        display: none;
+      }
       #${OVERLAY_ID} .cu-mini {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 42px 52px;
@@ -385,6 +391,7 @@ function createOverlay() {
         padding: 7px 10px;
         font-size: 12px;
         line-height: 1.1;
+        background: #fff;
       }
       #${OVERLAY_ID} .cu-row {
         display: grid;
@@ -393,7 +400,7 @@ function createOverlay() {
         column-gap: 8px;
       }
       #${OVERLAY_ID} .cu-mini + .cu-mini {
-        border-top: 1px solid #d1d1d1;
+        border-top: 1px solid #e3e3e3;
       }
       #${OVERLAY_ID} .cu-label {
         min-width: 0;
@@ -490,20 +497,22 @@ function createOverlay() {
           </svg>
         </button>
       </div>
-      <div class="cu-mini">
-        <span class="cu-label">5h</span>
-        <span class="cu-remaining" id="cu-short-mini">--</span>
-        <span class="cu-reset" id="cu-short-mini-reset">--</span>
-      </div>
-      <div class="cu-mini">
-        <span class="cu-label">Weekly</span>
-        <span class="cu-remaining" id="cu-weekly-mini">--</span>
-        <span class="cu-reset" id="cu-weekly-mini-reset">--</span>
+      <div class="cu-mini-wrap">
+        <div class="cu-mini">
+          <span class="cu-label">5h</span>
+          <span class="cu-remaining" id="cu-short-mini">--</span>
+          <span class="cu-reset" id="cu-short-mini-reset">--</span>
+        </div>
+        <div class="cu-mini">
+          <span class="cu-label">Weekly</span>
+          <span class="cu-remaining" id="cu-weekly-mini">--</span>
+          <span class="cu-reset" id="cu-weekly-mini-reset">--</span>
+        </div>
       </div>
       <div class="cu-details">
         <div class="cu-details-inner">
           <div class="cu-row">
-            <span class="cu-label">5 小时使用限额</span>
+            <span class="cu-label">5小时使用限额</span>
             <span class="cu-remaining" id="cu-short">--</span>
             <span class="cu-reset" id="cu-short-reset">--</span>
           </div>
