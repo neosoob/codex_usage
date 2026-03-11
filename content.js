@@ -3,10 +3,13 @@ const STORAGE_KEY = "codexUsageSnapshot";
 const CACHE_MS = 60 * 1000;
 const REFRESH_MS = 5 * 60 * 1000;
 const OVERLAY_ID = "codex-usage-overlay-root";
+const IFRAME_ID = "codex-usage-hidden-frame";
+const IFRAME_TIMEOUT_MS = 15000;
 
 let snapshotCache = null;
 let inflightPromise = null;
 let overlayInitialized = false;
+let iframePromise = null;
 
 function normalizeSpace(value) {
   return (value || "").replace(/\s+/g, " ").trim();
@@ -19,45 +22,20 @@ function splitLines(value) {
     .filter(Boolean);
 }
 
-function extractSection(lines, titlePattern, stopPatterns) {
-  const startIndex = lines.findIndex((line) => titlePattern.test(line));
-  if (startIndex === -1) {
-    return null;
-  }
-
-  const section = [lines[startIndex]];
-  for (let index = startIndex + 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (stopPatterns.some((pattern) => pattern.test(line))) {
-      break;
-    }
-    section.push(line);
-    if (section.length >= 6) {
-      break;
-    }
-  }
-
-  return section;
+function parseRemainingFromText(text) {
+  const normalized = normalizeSpace(text);
+  const match = normalized.match(/(\d+(?:\.\d+)?)\s*%\s*剩余/i) || normalized.match(/(\d+(?:\.\d+)?)\s*%/);
+  return match ? `${match[1]}%` : null;
 }
 
-function parseRemaining(sectionLines) {
-  const joined = sectionLines.join(" ");
-  const percentMatch = joined.match(/(\d+(?:\.\d+)?)\s*%\s*剩余/i) || joined.match(/remaining\s*(\d+(?:\.\d+)?)\s*%/i) || joined.match(/(\d+(?:\.\d+)?)\s*%/);
-  return percentMatch ? `${percentMatch[1]}%` : null;
+function parseResetFromText(text) {
+  const normalized = normalizeSpace(text);
+  const match = normalized.match(/重置时间[:：]\s*(.+?)(?:\s*[•·]\s*|$)/i) || normalized.match(/reset(?:s| time)?[:：]?\s*(.+?)(?:\s*[•·]\s*|$)/i);
+  return match ? normalizeSpace(match[1]) : null;
 }
 
-function parseReset(sectionLines) {
-  for (const line of sectionLines) {
-    const match = line.match(/重置时间[:：]\s*(.+)/i) || line.match(/reset(?:s| time)?[:：]?\s*(.+)/i);
-    if (match) {
-      return normalizeSpace(match[1]);
-    }
-  }
-  return null;
-}
-
-function makeLimit(label, sectionLines) {
-  if (!sectionLines) {
+function parseCard(article, label) {
+  if (!article) {
     return {
       label,
       remaining: null,
@@ -66,33 +44,34 @@ function makeLimit(label, sectionLines) {
     };
   }
 
+  const text = normalizeSpace(article.textContent || "");
+  const percentNode = Array.from(article.querySelectorAll("span, strong, div"))
+    .map((node) => normalizeSpace(node.textContent || ""))
+    .find((value) => /^\d+(?:\.\d+)?%$/.test(value));
+
   return {
     label,
-    remaining: parseRemaining(sectionLines),
-    resetAt: parseReset(sectionLines),
-    lines: sectionLines
+    remaining: percentNode || parseRemainingFromText(text),
+    resetAt: parseResetFromText(text),
+    lines: splitLines(article.textContent || "")
   };
 }
 
-function parseUsageDocument(htmlText) {
-  const doc = new DOMParser().parseFromString(htmlText, "text/html");
-  const bodyText = doc.body?.innerText || doc.documentElement?.textContent || "";
-  const lines = splitLines(bodyText);
+function findCardByTitle(doc, pattern) {
+  const articles = Array.from(doc.querySelectorAll("article"));
+  return articles.find((article) => {
+    const titleNode = article.querySelector("p");
+    const title = normalizeSpace(titleNode?.textContent || "");
+    return pattern.test(title);
+  }) || null;
+}
 
-  const shortSection = extractSection(
-    lines,
-    /(?:^|\s)(?:5\s*小时使用限额|5-hour usage limit|5 hour usage limit)(?:$|\s)/i,
-    [/(?:^|\s)(?:每周使用限额|weekly usage limit)(?:$|\s)/i]
-  );
+function parseUsageDocument(doc) {
+  const shortCard = findCardByTitle(doc, /^(?:5\s*小时使用限额|5-hour usage limit|5 hour usage limit)$/i);
+  const weeklyCard = findCardByTitle(doc, /^(?:每周使用限额|weekly usage limit)$/i);
 
-  const weeklySection = extractSection(
-    lines,
-    /(?:^|\s)(?:每周使用限额|weekly usage limit)(?:$|\s)/i,
-    []
-  );
-
-  const shortTerm = makeLimit("5 小时使用限额", shortSection);
-  const weekly = makeLimit("每周使用限额", weeklySection);
+  const shortTerm = parseCard(shortCard, "5 小时使用限额");
+  const weekly = parseCard(weeklyCard, "每周使用限额");
 
   return {
     scannedAt: new Date().toISOString(),
@@ -100,10 +79,14 @@ function parseUsageDocument(htmlText) {
     shortTerm,
     weekly,
     hints: [
-      shortSection ? `命中短周期区块：${shortSection.join(" | ")}` : "未命中短周期区块。",
-      weeklySection ? `命中周区块：${weeklySection.join(" | ")}` : "未命中周区块。"
+      shortCard ? `DOM 命中短周期卡片：${normalizeSpace(shortCard.textContent || "")}` : "DOM 未命中短周期卡片。",
+      weeklyCard ? `DOM 命中周卡片：${normalizeSpace(weeklyCard.textContent || "")}` : "DOM 未命中周卡片。"
     ]
   };
+}
+
+function isSnapshotComplete(snapshot) {
+  return Boolean(snapshot?.shortTerm?.remaining || snapshot?.weekly?.remaining);
 }
 
 async function saveSnapshot(snapshot) {
@@ -121,6 +104,134 @@ async function loadSnapshot() {
   return snapshotCache;
 }
 
+function getOrCreateIframe() {
+  let iframe = document.getElementById(IFRAME_ID);
+  if (iframe) {
+    return iframe;
+  }
+
+  iframe = document.createElement("iframe");
+  iframe.id = IFRAME_ID;
+  iframe.src = USAGE_URL;
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.tabIndex = -1;
+  Object.assign(iframe.style, {
+    position: "fixed",
+    width: "1px",
+    height: "1px",
+    right: "0",
+    bottom: "0",
+    opacity: "0",
+    pointerEvents: "none",
+    border: "0",
+    zIndex: "-1"
+  });
+  document.documentElement.appendChild(iframe);
+  return iframe;
+}
+
+function waitForUsageDom(iframe, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let observer = null;
+    let timeoutId = null;
+
+    const cleanup = () => {
+      if (observer) {
+        observer.disconnect();
+      }
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+
+    const tryResolve = () => {
+      try {
+        const iframeDoc = iframe.contentDocument;
+        if (!iframeDoc) {
+          return;
+        }
+
+        const snapshot = parseUsageDocument(iframeDoc);
+        if (isSnapshotComplete(snapshot)) {
+          settled = true;
+          cleanup();
+          resolve(snapshot);
+        }
+      } catch (error) {
+        settled = true;
+        cleanup();
+        reject(error);
+      }
+    };
+
+    const onLoad = () => {
+      if (settled) {
+        return;
+      }
+
+      tryResolve();
+
+      if (settled) {
+        return;
+      }
+
+      try {
+        const iframeDoc = iframe.contentDocument;
+        if (!iframeDoc?.documentElement) {
+          return;
+        }
+
+        observer = new MutationObserver(() => {
+          if (!settled) {
+            tryResolve();
+          }
+        });
+
+        observer.observe(iframeDoc.documentElement, {
+          childList: true,
+          subtree: true,
+          characterData: true
+        });
+      } catch (error) {
+        settled = true;
+        cleanup();
+        reject(error);
+      }
+    };
+
+    iframe.addEventListener("load", onLoad, { once: true });
+    timeoutId = window.setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      cleanup();
+      try {
+        const partial = parseUsageDocument(iframe.contentDocument || document);
+        reject(new Error(`usage 页面超时，短周期=${partial.shortTerm.remaining || "--"}，每周=${partial.weekly.remaining || "--"}`));
+      } catch (error) {
+        reject(new Error("usage 页面加载超时"));
+      }
+    }, timeoutMs);
+
+    tryResolve();
+  });
+}
+
+async function fetchUsageSnapshotFromIframe(forceRefresh) {
+  const iframe = getOrCreateIframe();
+
+  if (forceRefresh) {
+    iframe.src = `${USAGE_URL}${USAGE_URL.includes("?") ? "&" : "?"}_=${Date.now()}`;
+  }
+
+  const snapshot = await waitForUsageDom(iframe, IFRAME_TIMEOUT_MS);
+  await saveSnapshot(snapshot);
+  updateOverlay(snapshot);
+  return snapshot;
+}
+
 async function fetchUsageSnapshot(forceRefresh = false) {
   const cached = await loadSnapshot();
   const cacheAge = cached ? Date.now() - new Date(cached.scannedAt).getTime() : Infinity;
@@ -134,20 +245,11 @@ async function fetchUsageSnapshot(forceRefresh = false) {
   }
 
   inflightPromise = (async () => {
-    const response = await fetch(USAGE_URL, {
-      credentials: "include",
-      cache: "no-store"
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    try {
+      return await fetchUsageSnapshotFromIframe(forceRefresh);
+    } finally {
+      iframePromise = null;
     }
-
-    const html = await response.text();
-    const snapshot = parseUsageDocument(html);
-    await saveSnapshot(snapshot);
-    updateOverlay(snapshot);
-    return snapshot;
   })();
 
   try {
@@ -248,11 +350,6 @@ function createOverlay() {
         font-size: 22px;
         color: #a33f1f;
       }
-      #${OVERLAY_ID} .cu-reset {
-        margin-top: 2px;
-        font-size: 12px;
-        color: #6e655a;
-      }
       #${OVERLAY_ID} .cu-foot {
         margin-top: 10px;
         font-size: 11px;
@@ -310,7 +407,7 @@ function updateOverlay(snapshot, errorMessage) {
     return;
   }
 
-  status.textContent = "来自 usage 页面";
+  status.textContent = "来自登录态 usage 页面";
   shortMini.textContent = `5h ${snapshot.shortTerm.remaining || "--"}`;
   weeklyMini.textContent = `周 ${snapshot.weekly.remaining || "--"}`;
   short.textContent = snapshot.shortTerm.remaining || "--";

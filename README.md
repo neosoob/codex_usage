@@ -1,10 +1,13 @@
 ﻿# Codex Usage Checker
 
-一个 Chrome / Edge 扩展，用来固定读取 `https://chatgpt.com/codex/settings/usage` 的 Codex 余额，并在聊天页右下角显示缩略信息。
+一个 Chrome / Edge 扩展，用来在当前登录态下读取 `https://chatgpt.com/codex/settings/usage` 的 Codex 余额，并在聊天页右下角显示缩略信息。
 
 ## 当前实现
 
-- 不再依赖当前页面文本，而是始终请求 `https://chatgpt.com/codex/settings/usage`
+- 不再依赖当前页面文本
+- 不再直接 `fetch` usage 页原始 HTML
+- 改为在 `chatgpt.com` 同源下静默加载一个隐藏 `iframe`
+- 直接读取 usage 页前端渲染完成后的真实 DOM
 - 解析两组额度：
   - `5 小时使用限额`
   - `每周使用限额`
@@ -16,8 +19,8 @@
 ## 安装
 
 1. 打开浏览器扩展管理页
-2. 开启“开发者模式” 
-3. 选择“加载已解压的扩展程序” 
+2. 开启“开发者模式”
+3. 选择“加载已解压的扩展程序”
 4. 选择当前目录：`C:\Users\neoso\VSCodeProjects\codex_usage`
 
 ## 使用
@@ -30,10 +33,4 @@
 
 ## 注意
 
-这个版本依旧是解析 usage 页面 HTML 文本，不是调用官方公开 API。只要 usage 页面文案还是：
-
-- `5 小时使用限额`
-- `每周使用限额`
-- `重置时间：...`
-
-就能工作。后面如果页面结构或文案变化，需要同步更新解析规则。
+这个版本依赖 usage 页在 iframe 里完成前端渲染。如果 OpenAI 后续对该页加了 `X-Frame-Options` 或更严格的 CSP，需要再改成后台标签页抓取方案。
