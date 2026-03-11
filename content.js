@@ -385,7 +385,12 @@ function createOverlay() {
         font-size: 11px;
         color: #777;
       }
-      #${OVERLAY_ID} .cu-refresh {
+      #${OVERLAY_ID} .cu-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      #${OVERLAY_ID} .cu-action {
         flex: 0 0 auto;
         border: 1px solid #c6c6c6;
         border-radius: 4px;
@@ -396,10 +401,10 @@ function createOverlay() {
         padding: 4px 6px;
         cursor: pointer;
       }
-      #${OVERLAY_ID} .cu-refresh:hover {
+      #${OVERLAY_ID} .cu-action:hover {
         background: #fff;
       }
-      #${OVERLAY_ID} .cu-refresh:disabled {
+      #${OVERLAY_ID} .cu-action:disabled {
         opacity: 0.6;
         cursor: default;
       }
@@ -429,7 +434,10 @@ function createOverlay() {
           </div>
           <div class="cu-foot">
             <span id="cu-foot">读取中...</span>
-            <button type="button" class="cu-refresh" id="cu-refresh">刷新</button>
+            <div class="cu-actions">
+              <button type="button" class="cu-action" id="cu-detail">详情</button>
+              <button type="button" class="cu-action" id="cu-refresh">刷新</button>
+            </div>
           </div>
         </div>
       </div>
@@ -437,6 +445,14 @@ function createOverlay() {
   `;
 
   document.documentElement.appendChild(root);
+
+  const detailButton = root.querySelector("#cu-detail");
+  detailButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.open(USAGE_URL, "_blank", "noopener,noreferrer");
+  });
+
   const refreshButton = root.querySelector("#cu-refresh");
   refreshButton.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -450,6 +466,7 @@ function createOverlay() {
       refreshButton.textContent = "刷新";
     }
   });
+
   return root;
 }
 
