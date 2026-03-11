@@ -255,7 +255,7 @@ function isChatPage() {
   return location.hostname.endsWith("chatgpt.com") && !location.pathname.startsWith("/codex/settings/usage");
 }
 
-function compactReset(value) {
+function formatTimeReset(value) {
   if (!value) {
     return "--";
   }
@@ -266,10 +266,19 @@ function compactReset(value) {
     return shortTimeMatch[1].toUpperCase();
   }
 
-  const chineseDateMatch = normalized.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  return normalized;
+}
+
+function formatDateReset(value) {
+  if (!value) {
+    return "--";
+  }
+
+  const normalized = normalizeSpace(value);
+  const chineseDateMatch = normalized.match(/(?:\d{4}年)?(\d{1,2})月(\d{1,2})日/);
   if (chineseDateMatch) {
-    const [, year, month, day] = chineseDateMatch;
-    return `${year}/${month}/${day}`;
+    const [, month, day] = chineseDateMatch;
+    return `${month}月${day}日`;
   }
 
   const monthDayMatch = normalized.match(/([A-Z][a-z]{2}\s+\d{1,2})/);
@@ -277,7 +286,7 @@ function compactReset(value) {
     return monthDayMatch[1];
   }
 
-  return normalized;
+  return formatTimeReset(normalized);
 }
 
 function createOverlay() {
@@ -475,8 +484,8 @@ function updateOverlay(snapshot, errorMessage) {
 
   shortMini.textContent = snapshot.shortTerm.remaining || "--";
   weeklyMini.textContent = snapshot.weekly.remaining || "--";
-  shortMiniReset.textContent = compactReset(snapshot.shortTerm.resetAt);
-  weeklyMiniReset.textContent = compactReset(snapshot.weekly.resetAt);
+  shortMiniReset.textContent = formatTimeReset(snapshot.shortTerm.resetAt);
+  weeklyMiniReset.textContent = formatDateReset(snapshot.weekly.resetAt);
   short.textContent = snapshot.shortTerm.remaining || "--";
   weekly.textContent = snapshot.weekly.remaining || "--";
   shortReset.textContent = snapshot.shortTerm.resetAt || "--";
