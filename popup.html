@@ -10,38 +10,34 @@
     <main class="app">
       <section class="hero">
         <p class="eyebrow">Codex</p>
-        <h1>剩余用量</h1>
-        <p class="subtle">从当前打开的 OpenAI 页面里抓取可见用量信息。</p>
+        <h1>用量余额</h1>
+        <p class="subtle">固定读取 <code>/codex/settings/usage</code> 页面。</p>
       </section>
 
-      <section class="stats">
-        <article class="card">
-          <span class="label">剩余</span>
-          <strong id="remaining">--</strong>
-        </article>
-        <article class="card">
-          <span class="label">已用 / 总量</span>
-          <strong id="usagePair">--</strong>
-        </article>
-        <article class="card">
-          <span class="label">重置</span>
-          <strong id="resetAt">--</strong>
-        </article>
+      <section class="limit-card">
+        <div class="limit-head">
+          <span>5 小时使用限额</span>
+          <strong id="shortRemaining">--</strong>
+        </div>
+        <p id="shortReset" class="meta">重置时间：--</p>
       </section>
 
-      <section class="panel">
-        <p id="status" class="status">准备扫描当前页面…</p>
-        <button id="refresh" class="refresh" type="button">重新扫描</button>
+      <section class="limit-card">
+        <div class="limit-head">
+          <span>每周使用限额</span>
+          <strong id="weeklyRemaining">--</strong>
+        </div>
+        <p id="weeklyReset" class="meta">重置时间：--</p>
       </section>
 
       <section class="panel">
-        <h2>命中线索</h2>
+        <p id="status" class="status">准备读取余额…</p>
+        <button id="refresh" class="refresh" type="button">重新读取</button>
+      </section>
+
+      <section class="panel">
+        <h2>抓取线索</h2>
         <ul id="hints" class="list"></ul>
-      </section>
-
-      <section class="panel">
-        <h2>页面文本片段</h2>
-        <ul id="lines" class="list"></ul>
       </section>
     </main>
 

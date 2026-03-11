@@ -1,17 +1,15 @@
 ﻿{
   "manifest_version": 3,
   "name": "Codex Usage Checker",
-  "version": "0.1.0",
-  "description": "Check visible Codex usage information from supported OpenAI pages.",
+  "version": "0.2.0",
+  "description": "Read Codex usage from the usage settings page and show a chat overlay.",
   "permissions": [
     "activeTab",
     "storage"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",
-    "https://*.chatgpt.com/*",
-    "https://openai.com/*",
-    "https://*.openai.com/*"
+    "https://*.chatgpt.com/*"
   ],
   "action": {
     "default_title": "Codex Usage Checker",
@@ -21,9 +19,7 @@
     {
       "matches": [
         "https://chatgpt.com/*",
-        "https://*.chatgpt.com/*",
-        "https://openai.com/*",
-        "https://*.openai.com/*"
+        "https://*.chatgpt.com/*"
       ],
       "js": [
         "content.js"

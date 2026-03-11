@@ -14,12 +14,17 @@
 
 body {
   margin: 0;
-  min-width: 360px;
+  min-width: 340px;
   background:
     radial-gradient(circle at top right, rgba(163, 63, 31, 0.12), transparent 34%),
     linear-gradient(180deg, #f9f4ee 0%, var(--bg) 100%);
   color: var(--ink);
   font: 14px/1.45 "Segoe UI", "PingFang SC", sans-serif;
+}
+
+code {
+  font-family: Consolas, monospace;
+  font-size: 12px;
 }
 
 .app {
@@ -45,43 +50,44 @@ body {
   font-size: 24px;
 }
 
-.subtle {
-  margin-top: 6px;
+.subtle,
+.meta,
+.status,
+.list {
   color: var(--muted);
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 16px;
+.subtle {
+  margin-top: 6px;
 }
 
-.card,
+.limit-card,
 .panel {
+  margin-top: 12px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(255, 250, 243, 0.9);
 }
 
-.card {
-  padding: 12px;
+.limit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.card strong {
-  display: block;
-  margin-top: 8px;
-  font-size: 18px;
+.limit-head span {
+  font-weight: 600;
 }
 
-.label,
-.status {
-  color: var(--muted);
+.limit-head strong {
+  font-size: 26px;
+  color: var(--accent);
 }
 
-.panel {
-  margin-top: 12px;
-  padding: 12px;
+.meta {
+  margin: 8px 0 0;
 }
 
 .refresh {
@@ -97,21 +103,16 @@ body {
   font-weight: 600;
 }
 
-.refresh:hover {
-  filter: brightness(1.05);
+.list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.list li + li {
+  margin-top: 6px;
 }
 
 .panel h2 {
   margin: 0 0 8px;
   font-size: 14px;
-}
-
-.list {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--muted);
-}
-
-.list li + li {
-  margin-top: 6px;
 }

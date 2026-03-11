@@ -1,49 +1,38 @@
-﻿const remainingEl = document.getElementById("remaining");
-const usagePairEl = document.getElementById("usagePair");
-const resetAtEl = document.getElementById("resetAt");
+﻿const shortRemainingEl = document.getElementById("shortRemaining");
+const weeklyRemainingEl = document.getElementById("weeklyRemaining");
+const shortResetEl = document.getElementById("shortReset");
+const weeklyResetEl = document.getElementById("weeklyReset");
 const statusEl = document.getElementById("status");
 const hintsEl = document.getElementById("hints");
-const linesEl = document.getElementById("lines");
 const refreshButton = document.getElementById("refresh");
 
 function setList(element, items, emptyText) {
   element.innerHTML = "";
 
-  if (!items || items.length === 0) {
-    const li = document.createElement("li");
-    li.textContent = emptyText;
-    element.appendChild(li);
-    return;
-  }
-
-  for (const item of items) {
+  const source = items && items.length ? items : [emptyText];
+  for (const item of source) {
     const li = document.createElement("li");
     li.textContent = item;
     element.appendChild(li);
   }
 }
 
-function render(snapshot) {
-  remainingEl.textContent = snapshot.remaining || "--";
-  usagePairEl.textContent =
-    snapshot.used || snapshot.limit
-      ? `${snapshot.used || "--"} / ${snapshot.limit || "--"}`
-      : "--";
-  resetAtEl.textContent = snapshot.resetAt || "--";
-
-  const time = new Date(snapshot.scannedAt).toLocaleString("zh-CN");
-  statusEl.textContent = `已扫描 ${snapshot.title || "当前页面"}，时间 ${time}`;
-  setList(hintsEl, snapshot.hints, "没有匹配到明确的额度字段。");
-  setList(linesEl, snapshot.relevantLines, "页面里没有找到明显的用量关键词。");
+function renderSnapshot(snapshot) {
+  shortRemainingEl.textContent = snapshot.shortTerm.remaining || "--";
+  weeklyRemainingEl.textContent = snapshot.weekly.remaining || "--";
+  shortResetEl.textContent = `重置时间：${snapshot.shortTerm.resetAt || "--"}`;
+  weeklyResetEl.textContent = `重置时间：${snapshot.weekly.resetAt || "--"}`;
+  statusEl.textContent = `已读取 usage 页面，时间 ${new Date(snapshot.scannedAt).toLocaleString("zh-CN")}`;
+  setList(hintsEl, snapshot.hints, "没有额外线索。");
 }
 
 function renderError(message) {
-  remainingEl.textContent = "--";
-  usagePairEl.textContent = "--";
-  resetAtEl.textContent = "--";
+  shortRemainingEl.textContent = "--";
+  weeklyRemainingEl.textContent = "--";
+  shortResetEl.textContent = "重置时间：--";
+  weeklyResetEl.textContent = "重置时间：--";
   statusEl.textContent = message;
-  setList(hintsEl, [], "请先打开展示 Codex 用量的页面。");
-  setList(linesEl, [], "当前标签页没有可扫描内容。");
+  setList(hintsEl, [], "请先登录 chatgpt.com 后再试。");
 }
 
 async function getActiveTab() {
@@ -51,32 +40,46 @@ async function getActiveTab() {
   return tabs[0];
 }
 
-async function scanActiveTab() {
+async function loadFromStorage() {
+  const stored = await chrome.storage.local.get("codexUsageSnapshot");
+  return stored?.codexUsageSnapshot || null;
+}
+
+async function requestSnapshot(forceRefresh = false) {
   const tab = await getActiveTab();
 
-  if (!tab?.id || !tab.url) {
-    renderError("拿不到当前标签页。");
-    return;
-  }
-
-  const isSupported = /https:\/\/([^.]+\.)?(chatgpt|openai)\.com\//i.test(tab.url);
-  if (!isSupported) {
-    renderError("请先切到 chatgpt.com 或 openai.com 的相关页面。");
+  if (!tab?.id || !tab.url || !/https:\/\/([^.]+\.)?chatgpt\.com\//i.test(tab.url)) {
+    const cached = await loadFromStorage();
+    if (cached) {
+      renderSnapshot(cached);
+      return;
+    }
+    renderError("请先切到 chatgpt.com 页面，或先让扩展读取一次。");
     return;
   }
 
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, { type: "GET_CODEX_USAGE" });
-    if (!response) {
-      renderError("页面还没注入脚本，刷新目标页面后再试。");
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      type: "GET_CODEX_USAGE",
+      forceRefresh
+    });
+
+    if (response?.ok && response.snapshot) {
+      renderSnapshot(response.snapshot);
       return;
     }
 
-    render(response);
+    throw new Error(response?.error || "页面没有返回结果");
   } catch (error) {
-    renderError(`扫描失败：${error.message}`);
+    const cached = await loadFromStorage();
+    if (cached) {
+      renderSnapshot(cached);
+      statusEl.textContent = `实时读取失败，已显示缓存：${error.message}`;
+      return;
+    }
+    renderError(`读取失败：${error.message}`);
   }
 }
 
-refreshButton.addEventListener("click", scanActiveTab);
-scanActiveTab();
+refreshButton.addEventListener("click", () => requestSnapshot(true));
+requestSnapshot(false);
