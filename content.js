@@ -303,6 +303,18 @@ function formatDetailReset(value) {
   return normalized.replace(/^\d{4}年/, "");
 }
 
+function syncToggleIcon(root, expanded) {
+  const toggleButton = root.querySelector("#cu-toggle");
+  const togglePath = root.querySelector("#cu-toggle-path");
+  if (!toggleButton || !togglePath) {
+    return;
+  }
+
+  toggleButton.setAttribute("aria-expanded", String(expanded));
+  toggleButton.setAttribute("aria-label", expanded ? "收起详情" : "展开详情");
+  togglePath.setAttribute("d", expanded ? "M3.5 8h9" : "M3.5 6.5L8 11l4.5-4.5");
+}
+
 function createOverlay() {
   if (document.getElementById(OVERLAY_ID)) {
     return document.getElementById(OVERLAY_ID);
@@ -474,7 +486,7 @@ function createOverlay() {
         <span class="cu-title">Codex余额</span>
         <button type="button" class="cu-toggle" id="cu-toggle" aria-label="展开详情" aria-expanded="false">
           <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M3.5 6.5L8 11l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path id="cu-toggle-path" d="M3.5 6.5L8 11l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
           </svg>
         </button>
       </div>
@@ -519,8 +531,7 @@ function createOverlay() {
     event.preventDefault();
     event.stopPropagation();
     const expanded = root.classList.toggle("is-expanded");
-    toggleButton.setAttribute("aria-expanded", String(expanded));
-    toggleButton.setAttribute("aria-label", expanded ? "收起详情" : "展开详情");
+    syncToggleIcon(root, expanded);
   });
 
   const detailButton = root.querySelector("#cu-detail");
@@ -544,6 +555,7 @@ function createOverlay() {
     }
   });
 
+  syncToggleIcon(root, false);
   return root;
 }
 
