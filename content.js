@@ -349,6 +349,7 @@ function createOverlay() {
         align-items: center;
         gap: 8px;
         padding: 7px 10px;
+        min-height: 31px;
         border-bottom: 1px solid #d1d1d1;
         background: #ececec;
       }
@@ -378,7 +379,7 @@ function createOverlay() {
         height: 12px;
       }
       #${OVERLAY_ID} .cu-mini-wrap {
-        background: #fff;
+        background: #f6f6f6;
       }
       #${OVERLAY_ID}.is-expanded .cu-mini-wrap {
         display: none;
@@ -389,9 +390,10 @@ function createOverlay() {
         align-items: center;
         column-gap: 8px;
         padding: 7px 10px;
+        min-height: 31px;
         font-size: 12px;
         line-height: 1.1;
-        background: #fff;
+        background: #f6f6f6;
       }
       #${OVERLAY_ID} .cu-row {
         display: grid;
@@ -512,7 +514,7 @@ function createOverlay() {
       <div class="cu-details">
         <div class="cu-details-inner">
           <div class="cu-row">
-            <span class="cu-label">5小时使用限额</span>
+            <span class="cu-label">5 小时使用限额</span>
             <span class="cu-remaining" id="cu-short">--</span>
             <span class="cu-reset" id="cu-short-reset">--</span>
           </div>
