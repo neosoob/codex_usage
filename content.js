@@ -333,22 +333,26 @@ function createOverlay() {
       #${OVERLAY_ID}:focus-within .cu-shell {
         width: 296px;
       }
-      #${OVERLAY_ID} .cu-mini,
+      #${OVERLAY_ID} .cu-mini {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 42px 52px;
+        align-items: center;
+        column-gap: 8px;
+        padding: 7px 10px;
+        font-size: 12px;
+        line-height: 1.1;
+      }
       #${OVERLAY_ID} .cu-row {
         display: grid;
         grid-template-columns: 1fr auto auto;
         align-items: center;
         column-gap: 8px;
       }
-      #${OVERLAY_ID} .cu-mini {
-        padding: 7px 10px;
-        font-size: 12px;
-        line-height: 1.1;
-      }
       #${OVERLAY_ID} .cu-mini + .cu-mini {
         border-top: 1px solid #d1d1d1;
       }
       #${OVERLAY_ID} .cu-label {
+        min-width: 0;
         font-weight: 600;
         color: #363636;
       }
@@ -356,9 +360,17 @@ function createOverlay() {
         font-weight: 500;
         color: #363636;
       }
+      #${OVERLAY_ID} .cu-mini .cu-remaining {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
       #${OVERLAY_ID} .cu-reset {
         color: #666;
         white-space: nowrap;
+      }
+      #${OVERLAY_ID} .cu-mini .cu-reset {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
       }
       #${OVERLAY_ID} .cu-details {
         max-height: 0;
@@ -389,6 +401,8 @@ function createOverlay() {
       #${OVERLAY_ID} .cu-row .cu-remaining {
         font-size: 16px;
         font-weight: 700;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
       }
       #${OVERLAY_ID} .cu-foot {
         display: flex;
