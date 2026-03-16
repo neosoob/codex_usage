@@ -305,14 +305,16 @@ function formatDetailReset(value) {
 
 function syncToggleIcon(root, expanded) {
   const toggleButton = root.querySelector("#cu-toggle");
-  const togglePath = root.querySelector("#cu-toggle-path");
-  if (!toggleButton || !togglePath) {
+  const toggleExpand = root.querySelector("#cu-toggle-expand");
+  const toggleCollapse = root.querySelector("#cu-toggle-collapse");
+  if (!toggleButton || !toggleExpand || !toggleCollapse) {
     return;
   }
 
   toggleButton.setAttribute("aria-expanded", String(expanded));
   toggleButton.setAttribute("aria-label", expanded ? "收起详情" : "展开详情");
-  togglePath.setAttribute("d", expanded ? "M3.5 8h9" : "M3.5 6.5L8 11l4.5-4.5");
+  toggleExpand.style.display = expanded ? "none" : "block";
+  toggleCollapse.style.display = expanded ? "block" : "none";
 }
 
 function createOverlay() {
@@ -331,6 +333,9 @@ function createOverlay() {
         z-index: 2147483647;
         font-family: "Segoe UI", Arial, sans-serif;
         color: #333;
+      }
+      #${OVERLAY_ID}.is-hidden {
+        display: none;
       }
       #${OVERLAY_ID} .cu-shell {
         width: 180px;
@@ -358,7 +363,12 @@ function createOverlay() {
         font-weight: 700;
         color: #363636;
       }
-      #${OVERLAY_ID} .cu-toggle {
+      #${OVERLAY_ID} .cu-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      #${OVERLAY_ID} .cu-icon-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -371,10 +381,14 @@ function createOverlay() {
         cursor: pointer;
         padding: 0;
       }
-      #${OVERLAY_ID} .cu-toggle:hover {
+      #${OVERLAY_ID} .cu-icon-btn:hover {
         background: #fff;
       }
-      #${OVERLAY_ID} .cu-toggle svg {
+      #${OVERLAY_ID} .cu-icon-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      #${OVERLAY_ID} .cu-icon-btn svg {
         width: 12px;
         height: 12px;
       }
@@ -493,11 +507,30 @@ function createOverlay() {
     <div class="cu-shell">
       <div class="cu-header">
         <span class="cu-title">Codex余额</span>
-        <button type="button" class="cu-toggle" id="cu-toggle" aria-label="展开详情" aria-expanded="false">
-          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path id="cu-toggle-path" d="M3.5 6.5L8 11l4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-          </svg>
-        </button>
+        <div class="cu-header-actions">
+          <button type="button" class="cu-icon-btn" id="cu-refresh-head" aria-label="刷新">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M13 4.5V1.5M13 1.5H10M13 1.5L9.8 4.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path>
+              <path d="M13 8a5 5 0 1 1-1.46-3.54" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+            </svg>
+          </button>
+          <button type="button" class="cu-icon-btn" id="cu-toggle" aria-label="展开详情" aria-expanded="false">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <g id="cu-toggle-expand">
+                <rect x="4" y="4" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.3"></rect>
+              </g>
+              <g id="cu-toggle-collapse" style="display:none">
+                <rect x="3.5" y="5" width="7.5" height="7.5" rx="1" stroke="currentColor" stroke-width="1.3"></rect>
+                <rect x="5" y="3.5" width="7.5" height="7.5" rx="1" stroke="currentColor" stroke-width="1.3"></rect>
+              </g>
+            </svg>
+          </button>
+          <button type="button" class="cu-icon-btn" id="cu-close" aria-label="关闭">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4.5 4.5L11.5 11.5M11.5 4.5L4.5 11.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="cu-mini-wrap">
         <div class="cu-mini">
@@ -537,12 +570,35 @@ function createOverlay() {
 
   document.documentElement.appendChild(root);
 
+  const doRefresh = async (button) => {
+    button.disabled = true;
+    try {
+      await refreshOverlay(true);
+    } finally {
+      button.disabled = false;
+    }
+  };
+
+  const refreshHeadButton = root.querySelector("#cu-refresh-head");
+  refreshHeadButton.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await doRefresh(refreshHeadButton);
+  });
+
   const toggleButton = root.querySelector("#cu-toggle");
   toggleButton.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     const expanded = root.classList.toggle("is-expanded");
     syncToggleIcon(root, expanded);
+  });
+
+  const closeButton = root.querySelector("#cu-close");
+  closeButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    root.classList.add("is-hidden");
   });
 
   const detailButton = root.querySelector("#cu-detail");
