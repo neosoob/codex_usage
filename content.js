@@ -337,14 +337,14 @@ function createOverlay() {
           transform: translateY(0) scale(1);
         }
       }
-      @keyframes cu-pill-in {
+      @keyframes cu-orb-in {
         from {
           opacity: 0;
-          transform: translateY(10px) scale(0.78) rotate(-8deg);
+          transform: translateY(8px) scale(0.82);
         }
         to {
           opacity: 1;
-          transform: translateY(0) scale(1) rotate(0deg);
+          transform: translateY(0) scale(1);
         }
       }
       #${OVERLAY_ID} {
@@ -359,24 +359,26 @@ function createOverlay() {
         display: none;
         align-items: center;
         justify-content: center;
-        width: 42px;
-        height: 42px;
-        border: 1px solid rgba(183, 183, 183, 0.92);
-        border-radius: 14px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,246,246,0.98));
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
-        color: #2f2f2f;
+        width: 40px;
+        height: 40px;
+        border: 1px solid rgba(214, 214, 214, 0.95);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+        color: #5c5c5c;
         cursor: pointer;
-        transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+        backdrop-filter: blur(8px);
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease;
       }
       #${OVERLAY_ID} .cu-restore:hover {
-        transform: translateY(-2px) scale(1.04);
-        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
-        background: linear-gradient(180deg, rgba(255,255,255,1), rgba(249,249,249,1));
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
+        background: rgba(255, 255, 255, 0.98);
+        color: #303030;
       }
       #${OVERLAY_ID}.is-hidden .cu-restore {
         display: inline-flex;
-        animation: cu-pill-in 220ms cubic-bezier(.2,.8,.2,1);
+        animation: cu-orb-in 200ms cubic-bezier(.2,.8,.2,1);
       }
       #${OVERLAY_ID}.is-hidden .cu-shell {
         display: none;
@@ -564,8 +566,8 @@ function createOverlay() {
     </style>
     <button type="button" class="cu-restore" id="cu-restore" aria-label="恢复Codex余额">
       <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <rect x="3.5" y="5" width="7.5" height="7.5" rx="1.2" stroke="currentColor" stroke-width="1.3"></rect>
-        <rect x="5" y="3.5" width="7.5" height="7.5" rx="1.2" stroke="currentColor" stroke-width="1.3"></rect>
+        <rect x="3.75" y="3.75" width="8.5" height="8.5" rx="2" stroke="currentColor" stroke-width="1.35"></rect>
+        <path d="M8 5.7V10.3M5.7 8H10.3" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"></path>
       </svg>
     </button>
     <div class="cu-shell">
