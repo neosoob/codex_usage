@@ -5,8 +5,6 @@ const REFRESH_MS = 5 * 60 * 1000;
 const OVERLAY_ID = "codex-usage-overlay-root";
 const IFRAME_ID = "codex-usage-hidden-frame";
 const IFRAME_TIMEOUT_MS = 15000;
-const ENTER_TRANSITION_MS = 260;
-const COLLAPSE_TRANSITION_MS = 320;
 
 let snapshotCache = null;
 let inflightPromise = null;
@@ -319,53 +317,18 @@ function syncToggleIcon(root, expanded) {
   toggleCollapse.style.display = expanded ? "block" : "none";
 }
 
-function clearOverlayTimers(root) {
-  if (root.__enterTimer) {
-    window.clearTimeout(root.__enterTimer);
-    root.__enterTimer = null;
-  }
-
-  if (root.__hideTimer) {
-    window.clearTimeout(root.__hideTimer);
-    root.__hideTimer = null;
-  }
-}
-
-function playEnterAnimation(root) {
-  clearOverlayTimers(root);
-  root.classList.remove("is-entering");
-  void root.offsetWidth;
-  root.classList.add("is-entering");
-  root.__enterTimer = window.setTimeout(() => {
-    root.classList.remove("is-entering");
-    root.__enterTimer = null;
-  }, ENTER_TRANSITION_MS);
-}
-
 function collapseToThumbnail(root) {
   root.classList.remove("is-expanded");
   syncToggleIcon(root, false);
 }
 
 function restoreOverlay(root) {
-  clearOverlayTimers(root);
   root.classList.remove("is-hidden");
   collapseToThumbnail(root);
-  playEnterAnimation(root);
 }
 
 function minimizeOverlay(root) {
-  clearOverlayTimers(root);
-
-  if (root.classList.contains("is-expanded")) {
-    collapseToThumbnail(root);
-    root.__hideTimer = window.setTimeout(() => {
-      root.classList.add("is-hidden");
-      root.__hideTimer = null;
-    }, COLLAPSE_TRANSITION_MS);
-    return;
-  }
-
+  collapseToThumbnail(root);
   root.classList.add("is-hidden");
 }
 
@@ -376,35 +339,14 @@ function createOverlay() {
 
   const root = document.createElement("div");
   root.id = OVERLAY_ID;
-  root.classList.add("is-entering");
   root.innerHTML = `
     <style>
-      @keyframes cu-orb-in {
-        from {
-          opacity: 0;
-          transform: translateY(6px) scale(0.9);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
       @keyframes cu-refresh-spin {
         from {
           transform: rotate(0deg);
         }
         to {
           transform: rotate(360deg);
-        }
-      }
-      @keyframes cu-refresh-breathe {
-        0%, 100% {
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
-          opacity: 1;
-        }
-        50% {
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
-          opacity: 0.92;
         }
       }
       #${OVERLAY_ID} {
@@ -437,17 +379,8 @@ function createOverlay() {
         backdrop-filter: blur(6px);
         opacity: 0;
         pointer-events: none;
-        transform: translateY(8px) scale(0.82);
-        transition:
-          opacity 180ms ease,
-          transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
-          box-shadow 180ms ease,
-          background 180ms ease,
-          color 180ms ease,
-          border-color 180ms ease;
       }
       #${OVERLAY_ID} .cu-restore:hover {
-        transform: translateY(-1px);
         box-shadow: 0 12px 22px rgba(0, 0, 0, 0.12);
         background: #ffffff;
         border-color: #cfcfcf;
@@ -456,8 +389,6 @@ function createOverlay() {
       #${OVERLAY_ID}.is-hidden .cu-restore {
         opacity: 1;
         pointer-events: auto;
-        transform: translateY(0) scale(1);
-        animation: cu-orb-in 220ms cubic-bezier(.2,.8,.2,1);
       }
       #${OVERLAY_ID} .cu-restore svg {
         width: 16px;
@@ -476,22 +407,14 @@ function createOverlay() {
         overflow: hidden;
         opacity: 1;
         pointer-events: auto;
-        transform: translateY(0) scale(1);
         transform-origin: bottom right;
-        transition:
-          width 240ms ease,
-          opacity 180ms ease,
-          transform 240ms ease,
-          box-shadow 220ms ease;
       }
       #${OVERLAY_ID}.is-expanded .cu-shell {
         width: 296px;
       }
-      #${OVERLAY_ID}.is-hidden .cu-shell,
-      #${OVERLAY_ID}.is-entering .cu-shell {
+      #${OVERLAY_ID}.is-hidden .cu-shell {
         opacity: 0;
         pointer-events: none;
-        transform: translateY(10px) scale(0.97);
       }
       #${OVERLAY_ID} .cu-header {
         display: grid;
@@ -545,16 +468,10 @@ function createOverlay() {
         overflow: hidden;
         max-height: 74px;
         opacity: 1;
-        transform: translateY(0) scale(1);
-        transition:
-          max-height 240ms ease,
-          opacity 180ms ease,
-          transform 240ms ease;
       }
       #${OVERLAY_ID}.is-expanded .cu-mini-wrap {
         max-height: 0;
         opacity: 0;
-        transform: translateY(-6px) scale(0.995);
         pointer-events: none;
       }
       #${OVERLAY_ID} .cu-mini {
@@ -602,23 +519,13 @@ function createOverlay() {
         overflow: hidden;
         max-height: 0;
         opacity: 0;
-        transform: translateY(6px) scale(0.995);
         border-top: 1px solid transparent;
         background: #f6f6f6;
-        transition:
-          max-height 260ms ease,
-          opacity 200ms ease,
-          transform 240ms ease,
-          border-color 220ms ease;
       }
       #${OVERLAY_ID}.is-expanded .cu-details {
         max-height: 240px;
         opacity: 1;
-        transform: translateY(0) scale(1);
         border-top-color: #d1d1d1;
-      }
-      #${OVERLAY_ID}.is-refreshing .cu-shell {
-        animation: cu-refresh-breathe 900ms ease-in-out infinite;
       }
       #${OVERLAY_ID}.is-refreshing #cu-refresh-head svg {
         animation: cu-refresh-spin 900ms linear infinite;
@@ -760,10 +667,6 @@ function createOverlay() {
   `;
 
   document.documentElement.appendChild(root);
-  root.__enterTimer = window.setTimeout(() => {
-    root.classList.remove("is-entering");
-    root.__enterTimer = null;
-  }, ENTER_TRANSITION_MS);
 
   const refreshHeadButton = root.querySelector("#cu-refresh-head");
   const refreshButton = root.querySelector("#cu-refresh");
