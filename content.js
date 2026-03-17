@@ -5,6 +5,8 @@ const REFRESH_MS = 5 * 60 * 1000;
 const OVERLAY_ID = "codex-usage-overlay-root";
 const IFRAME_ID = "codex-usage-hidden-frame";
 const IFRAME_TIMEOUT_MS = 15000;
+const ENTER_TRANSITION_MS = 260;
+const COLLAPSE_TRANSITION_MS = 320;
 
 let snapshotCache = null;
 let inflightPromise = null;
@@ -317,6 +319,56 @@ function syncToggleIcon(root, expanded) {
   toggleCollapse.style.display = expanded ? "block" : "none";
 }
 
+function clearOverlayTimers(root) {
+  if (root.__enterTimer) {
+    window.clearTimeout(root.__enterTimer);
+    root.__enterTimer = null;
+  }
+
+  if (root.__hideTimer) {
+    window.clearTimeout(root.__hideTimer);
+    root.__hideTimer = null;
+  }
+}
+
+function playEnterAnimation(root) {
+  clearOverlayTimers(root);
+  root.classList.remove("is-entering");
+  void root.offsetWidth;
+  root.classList.add("is-entering");
+  root.__enterTimer = window.setTimeout(() => {
+    root.classList.remove("is-entering");
+    root.__enterTimer = null;
+  }, ENTER_TRANSITION_MS);
+}
+
+function collapseToThumbnail(root) {
+  root.classList.remove("is-expanded");
+  syncToggleIcon(root, false);
+}
+
+function restoreOverlay(root) {
+  clearOverlayTimers(root);
+  root.classList.remove("is-hidden");
+  collapseToThumbnail(root);
+  playEnterAnimation(root);
+}
+
+function minimizeOverlay(root) {
+  clearOverlayTimers(root);
+
+  if (root.classList.contains("is-expanded")) {
+    collapseToThumbnail(root);
+    root.__hideTimer = window.setTimeout(() => {
+      root.classList.add("is-hidden");
+      root.__hideTimer = null;
+    }, COLLAPSE_TRANSITION_MS);
+    return;
+  }
+
+  root.classList.add("is-hidden");
+}
+
 function createOverlay() {
   if (document.getElementById(OVERLAY_ID)) {
     return document.getElementById(OVERLAY_ID);
@@ -327,16 +379,6 @@ function createOverlay() {
   root.classList.add("is-entering");
   root.innerHTML = `
     <style>
-      @keyframes cu-panel-in {
-        from {
-          opacity: 0;
-          transform: translateY(18px) scale(0.94);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
       @keyframes cu-orb-in {
         from {
           opacity: 0;
@@ -354,53 +396,84 @@ function createOverlay() {
         z-index: 2147483647;
         font-family: "Segoe UI", Arial, sans-serif;
         color: #333;
+        transform-origin: bottom right;
+        width: 296px;
+        height: 240px;
+        pointer-events: none;
       }
       #${OVERLAY_ID} .cu-restore {
-        display: none;
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
-        border: 1px solid rgba(214, 214, 214, 0.95);
+        width: 36px;
+        height: 36px;
+        border: 1px solid #d8d8d8;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.94);
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
-        color: #5c5c5c;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.10);
+        color: #767676;
         cursor: pointer;
-        backdrop-filter: blur(8px);
-        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease;
+        backdrop-filter: blur(6px);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(8px) scale(0.82);
+        transition:
+          opacity 180ms ease,
+          transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          box-shadow 180ms ease,
+          background 180ms ease,
+          color 180ms ease,
+          border-color 180ms ease;
       }
       #${OVERLAY_ID} .cu-restore:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
-        background: rgba(255, 255, 255, 0.98);
-        color: #303030;
+        transform: translateY(-1px);
+        box-shadow: 0 12px 22px rgba(0, 0, 0, 0.12);
+        background: #ffffff;
+        border-color: #cfcfcf;
+        color: #4f4f4f;
       }
       #${OVERLAY_ID}.is-hidden .cu-restore {
-        display: inline-flex;
-        animation: cu-orb-in 200ms cubic-bezier(.2,.8,.2,1);
-      }
-      #${OVERLAY_ID}.is-hidden .cu-shell {
-        display: none;
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+        animation: cu-orb-in 220ms cubic-bezier(.2,.8,.2,1);
       }
       #${OVERLAY_ID} .cu-restore svg {
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
         flex: 0 0 auto;
       }
       #${OVERLAY_ID} .cu-shell {
+        position: absolute;
+        right: 0;
+        bottom: 0;
         width: 180px;
         border: 1px solid #c7c7c7;
         border-radius: 8px;
         background: #ececec;
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
         overflow: hidden;
-      }
-      #${OVERLAY_ID}.is-entering .cu-shell {
-        animation: cu-panel-in 240ms cubic-bezier(.2,.8,.2,1);
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+        transform-origin: bottom right;
+        transition:
+          width 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          opacity 180ms ease,
+          transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          box-shadow 220ms ease;
       }
       #${OVERLAY_ID}.is-expanded .cu-shell {
         width: 296px;
+      }
+      #${OVERLAY_ID}.is-hidden .cu-shell,
+      #${OVERLAY_ID}.is-entering .cu-shell {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(12px) scale(0.92);
       }
       #${OVERLAY_ID} .cu-header {
         display: grid;
@@ -451,9 +524,20 @@ function createOverlay() {
       }
       #${OVERLAY_ID} .cu-mini-wrap {
         background: #f6f6f6;
+        overflow: hidden;
+        max-height: 74px;
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        transition:
+          max-height 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          opacity 180ms ease,
+          transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
       }
       #${OVERLAY_ID}.is-expanded .cu-mini-wrap {
-        display: none;
+        max-height: 0;
+        opacity: 0;
+        transform: translateY(-10px) scale(0.98);
+        pointer-events: none;
       }
       #${OVERLAY_ID} .cu-mini {
         display: grid;
@@ -497,12 +581,23 @@ function createOverlay() {
         font-variant-numeric: tabular-nums;
       }
       #${OVERLAY_ID} .cu-details {
-        display: none;
-        border-top: 1px solid #d1d1d1;
+        overflow: hidden;
+        max-height: 0;
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+        border-top: 1px solid transparent;
         background: #f6f6f6;
+        transition:
+          max-height 340ms cubic-bezier(0.22, 1, 0.36, 1),
+          opacity 200ms ease,
+          transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          border-color 220ms ease;
       }
       #${OVERLAY_ID}.is-expanded .cu-details {
-        display: block;
+        max-height: 240px;
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        border-top-color: #d1d1d1;
       }
       #${OVERLAY_ID} .cu-details-inner {
         padding: 10px;
@@ -566,8 +661,9 @@ function createOverlay() {
     </style>
     <button type="button" class="cu-restore" id="cu-restore" aria-label="恢复Codex余额">
       <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <rect x="3.75" y="3.75" width="8.5" height="8.5" rx="2" stroke="currentColor" stroke-width="1.35"></rect>
-        <path d="M8 5.7V10.3M5.7 8H10.3" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"></path>
+        <rect x="4" y="4" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.25"></rect>
+        <path d="M6.4 8H9.6" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"></path>
+        <path d="M8 6.4V9.6" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"></path>
       </svg>
     </button>
     <div class="cu-shell">
@@ -635,9 +731,10 @@ function createOverlay() {
   `;
 
   document.documentElement.appendChild(root);
-  window.setTimeout(() => {
+  root.__enterTimer = window.setTimeout(() => {
     root.classList.remove("is-entering");
-  }, 260);
+    root.__enterTimer = null;
+  }, ENTER_TRANSITION_MS);
 
   const doRefresh = async (button) => {
     button.disabled = true;
@@ -652,11 +749,7 @@ function createOverlay() {
   restoreButton.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    root.classList.remove("is-hidden");
-    root.classList.add("is-entering");
-    window.setTimeout(() => {
-      root.classList.remove("is-entering");
-    }, 260);
+    restoreOverlay(root);
   });
 
   const refreshHeadButton = root.querySelector("#cu-refresh-head");
@@ -678,7 +771,7 @@ function createOverlay() {
   closeButton.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    root.classList.add("is-hidden");
+    minimizeOverlay(root);
   });
 
   const detailButton = root.querySelector("#cu-detail");
@@ -787,3 +880,6 @@ if (document.readyState === "loading") {
 } else {
   initOverlay();
 }
+
+
+
