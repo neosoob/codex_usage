@@ -382,11 +382,29 @@ function createOverlay() {
       @keyframes cu-orb-in {
         from {
           opacity: 0;
-          transform: translateY(8px) scale(0.82);
+          transform: translateY(6px) scale(0.9);
         }
         to {
           opacity: 1;
           transform: translateY(0) scale(1);
+        }
+      }
+      @keyframes cu-refresh-spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes cu-refresh-breathe {
+        0%, 100% {
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
+          opacity: 1;
+        }
+        50% {
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+          opacity: 0.92;
         }
       }
       #${OVERLAY_ID} {
@@ -461,9 +479,9 @@ function createOverlay() {
         transform: translateY(0) scale(1);
         transform-origin: bottom right;
         transition:
-          width 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          width 240ms ease,
           opacity 180ms ease,
-          transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 240ms ease,
           box-shadow 220ms ease;
       }
       #${OVERLAY_ID}.is-expanded .cu-shell {
@@ -473,7 +491,7 @@ function createOverlay() {
       #${OVERLAY_ID}.is-entering .cu-shell {
         opacity: 0;
         pointer-events: none;
-        transform: translateY(12px) scale(0.92);
+        transform: translateY(10px) scale(0.97);
       }
       #${OVERLAY_ID} .cu-header {
         display: grid;
@@ -529,14 +547,14 @@ function createOverlay() {
         opacity: 1;
         transform: translateY(0) scale(1);
         transition:
-          max-height 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          max-height 240ms ease,
           opacity 180ms ease,
-          transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+          transform 240ms ease;
       }
       #${OVERLAY_ID}.is-expanded .cu-mini-wrap {
         max-height: 0;
         opacity: 0;
-        transform: translateY(-10px) scale(0.98);
+        transform: translateY(-6px) scale(0.995);
         pointer-events: none;
       }
       #${OVERLAY_ID} .cu-mini {
@@ -584,13 +602,13 @@ function createOverlay() {
         overflow: hidden;
         max-height: 0;
         opacity: 0;
-        transform: translateY(12px) scale(0.98);
+        transform: translateY(6px) scale(0.995);
         border-top: 1px solid transparent;
         background: #f6f6f6;
         transition:
-          max-height 340ms cubic-bezier(0.22, 1, 0.36, 1),
+          max-height 260ms ease,
           opacity 200ms ease,
-          transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 240ms ease,
           border-color 220ms ease;
       }
       #${OVERLAY_ID}.is-expanded .cu-details {
@@ -598,6 +616,17 @@ function createOverlay() {
         opacity: 1;
         transform: translateY(0) scale(1);
         border-top-color: #d1d1d1;
+      }
+      #${OVERLAY_ID}.is-refreshing .cu-shell {
+        animation: cu-refresh-breathe 900ms ease-in-out infinite;
+      }
+      #${OVERLAY_ID}.is-refreshing #cu-refresh-head svg {
+        animation: cu-refresh-spin 900ms linear infinite;
+        transform-origin: center;
+      }
+      #${OVERLAY_ID}.is-refreshing #cu-refresh {
+        background: #ffffff;
+        color: #2f2f2f;
       }
       #${OVERLAY_ID} .cu-details-inner {
         padding: 10px;
@@ -736,12 +765,22 @@ function createOverlay() {
     root.__enterTimer = null;
   }, ENTER_TRANSITION_MS);
 
-  const doRefresh = async (button) => {
-    button.disabled = true;
+  const refreshHeadButton = root.querySelector("#cu-refresh-head");
+  const refreshButton = root.querySelector("#cu-refresh");
+
+  const setRefreshing = (refreshing) => {
+    root.classList.toggle("is-refreshing", refreshing);
+    refreshHeadButton.disabled = refreshing;
+    refreshButton.disabled = refreshing;
+    refreshButton.textContent = refreshing ? "刷新中" : "刷新";
+  };
+
+  const doRefresh = async () => {
+    setRefreshing(true);
     try {
       await refreshOverlay(true);
     } finally {
-      button.disabled = false;
+      setRefreshing(false);
     }
   };
 
@@ -752,11 +791,10 @@ function createOverlay() {
     restoreOverlay(root);
   });
 
-  const refreshHeadButton = root.querySelector("#cu-refresh-head");
   refreshHeadButton.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    await doRefresh(refreshHeadButton);
+    await doRefresh();
   });
 
   const toggleButton = root.querySelector("#cu-toggle");
@@ -781,18 +819,10 @@ function createOverlay() {
     window.open(USAGE_URL, "_blank", "noopener,noreferrer");
   });
 
-  const refreshButton = root.querySelector("#cu-refresh");
   refreshButton.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    refreshButton.disabled = true;
-    refreshButton.textContent = "刷新中";
-    try {
-      await refreshOverlay(true);
-    } finally {
-      refreshButton.disabled = false;
-      refreshButton.textContent = "刷新";
-    }
+    await doRefresh();
   });
 
   syncToggleIcon(root, false);
