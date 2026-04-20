@@ -76,6 +76,11 @@ async function fetchLatestBattery() {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "GET_BATTERY_API_BASE_URL") {
+    sendResponse({ ok: true, baseUrl: BATTERY_API_BASE_URL });
+    return false;
+  }
+
   if (message?.type !== "GET_LATEST_BATTERY") {
     return false;
   }

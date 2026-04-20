@@ -331,20 +331,20 @@ function updateBatteryBadge(data, errorMessage) {
   }
 
   if (errorMessage) {
-    badge.textContent = errorMessage;
+    badge.textContent = `最新电量: ${errorMessage}`;
     badge.title = errorMessage;
     return;
   }
 
   if (!data?.ok || !data.has_data) {
-    badge.textContent = "无电量";
+    badge.textContent = "最新电量: 无数据";
     badge.title = "电量接口暂无可用记录";
     return;
   }
 
   const battery = Number.isFinite(Number(data.battery)) ? `${Number(data.battery)}%` : "--";
   const timestamp = formatBatteryTimestamp(data.timestamp);
-  badge.textContent = `${timestamp} ${battery}`;
+  badge.textContent = `最新电量: ${timestamp} ${battery}`;
   badge.title = [
     `电量：${battery}`,
     `时间：${data.timestamp || "--"}`,
@@ -495,7 +495,12 @@ function createOverlay() {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        pointer-events: none;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+      #${OVERLAY_ID} .cu-close-badge:hover {
+        background: #ffffff;
+        border-color: #b8b8b8;
       }
       #${OVERLAY_ID}.is-expanded .cu-shell {
         width: 296px;
@@ -691,7 +696,7 @@ function createOverlay() {
       </svg>
     </button>
     <div class="cu-shell">
-      <span class="cu-close-badge" id="cu-battery-badge" aria-live="polite">读取电量</span>
+      <button type="button" class="cu-close-badge" id="cu-battery-badge" aria-live="polite">最新电量: 读取中</button>
       <div class="cu-header">
         <span class="cu-title">Codex余额</span>
         <div class="cu-header-actions">
@@ -759,6 +764,7 @@ function createOverlay() {
 
   const refreshHeadButton = root.querySelector("#cu-refresh-head");
   const refreshButton = root.querySelector("#cu-refresh");
+  const batteryBadge = root.querySelector("#cu-battery-badge");
 
   const setRefreshing = (refreshing) => {
     root.classList.toggle("is-refreshing", refreshing);
@@ -781,6 +787,15 @@ function createOverlay() {
     event.preventDefault();
     event.stopPropagation();
     restoreOverlay(root);
+  });
+
+  batteryBadge.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const response = await chrome.runtime.sendMessage({ type: "GET_BATTERY_API_BASE_URL" });
+    if (response?.ok && response.baseUrl) {
+      window.open(response.baseUrl, "_blank", "noopener,noreferrer");
+    }
   });
 
   refreshHeadButton.addEventListener("click", async (event) => {
