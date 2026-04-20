@@ -8,9 +8,13 @@
     "storage"
   ],
   "host_permissions": [
+    "http://*/*",
     "https://chatgpt.com/*",
     "https://*.chatgpt.com/*"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_title": "Codex Usage Checker",
     "default_popup": "popup.html"

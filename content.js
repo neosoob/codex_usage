@@ -2,6 +2,7 @@
 const STORAGE_KEY = "codexUsageSnapshot";
 const CACHE_MS = 60 * 1000;
 const REFRESH_MS = 5 * 60 * 1000;
+const BATTERY_REFRESH_MS = 60 * 1000;
 const OVERLAY_ID = "codex-usage-overlay-root";
 const IFRAME_ID = "codex-usage-hidden-frame";
 const IFRAME_TIMEOUT_MS = 15000;
@@ -303,6 +304,71 @@ function formatDetailReset(value) {
   return normalized.replace(/^\d{4}年/, "");
 }
 
+function formatBatteryTimestamp(value) {
+  if (!value) {
+    return "--";
+  }
+
+  const normalized = normalizeSpace(value);
+  const match = normalized.match(/(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}:\d{2})/);
+  if (match) {
+    const [, _year, month, day, time] = match;
+    return `${Number(month)}/${Number(day)} ${time}`;
+  }
+
+  return normalized;
+}
+
+function updateBatteryBadge(data, errorMessage) {
+  if (!isChatPage()) {
+    return;
+  }
+
+  const root = createOverlay();
+  const badge = root.querySelector("#cu-battery-badge");
+  if (!badge) {
+    return;
+  }
+
+  if (errorMessage) {
+    badge.textContent = errorMessage;
+    badge.title = errorMessage;
+    return;
+  }
+
+  if (!data?.ok || !data.has_data) {
+    badge.textContent = "无电量";
+    badge.title = "电量接口暂无可用记录";
+    return;
+  }
+
+  const battery = Number.isFinite(Number(data.battery)) ? `${Number(data.battery)}%` : "--";
+  const timestamp = formatBatteryTimestamp(data.timestamp);
+  badge.textContent = `${timestamp} ${battery}`;
+  badge.title = [
+    `电量：${battery}`,
+    `时间：${data.timestamp || "--"}`,
+    data.location ? `位置：${data.location}` : null,
+    Number.isFinite(Number(data.age_seconds)) ? `距今：${Math.round(Number(data.age_seconds) / 60)} 分钟` : null
+  ].filter(Boolean).join("\n");
+}
+
+async function refreshBatteryBadge() {
+  if (!isChatPage()) {
+    return;
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "GET_LATEST_BATTERY" });
+    if (!response?.ok) {
+      throw new Error(response?.error || "电量接口无响应");
+    }
+    updateBatteryBadge(response.data);
+  } catch (error) {
+    updateBatteryBadge(null, `电量失败：${error.message}`);
+  }
+}
+
 function syncToggleIcon(root, expanded) {
   const toggleButton = root.querySelector("#cu-toggle");
   const toggleExpand = root.querySelector("#cu-toggle-expand");
@@ -404,10 +470,32 @@ function createOverlay() {
         border-radius: 8px;
         background: #ececec;
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
-        overflow: hidden;
+        overflow: visible;
         opacity: 1;
         pointer-events: auto;
         transform-origin: bottom right;
+      }
+      #${OVERLAY_ID} .cu-close-badge {
+        position: absolute;
+        top: -24px;
+        right: 0;
+        box-sizing: border-box;
+        min-width: 72px;
+        max-width: 180px;
+        padding: 0 6px;
+        text-align: center;
+        font-size: 12px;
+        line-height: 20px;
+        font-weight: 700;
+        color: #333;
+        background: #ffffff;
+        border: 1px solid #c7c7c7;
+        border-radius: 4px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
       }
       #${OVERLAY_ID}.is-expanded .cu-shell {
         width: 296px;
@@ -603,6 +691,7 @@ function createOverlay() {
       </svg>
     </button>
     <div class="cu-shell">
+      <span class="cu-close-badge" id="cu-battery-badge" aria-live="polite">读取电量</span>
       <div class="cu-header">
         <span class="cu-title">Codex余额</span>
         <div class="cu-header-actions">
@@ -792,7 +881,11 @@ function initOverlay() {
 
   overlayInitialized = true;
   createOverlay();
+  refreshBatteryBadge();
   refreshOverlay(false);
+  window.setInterval(() => {
+    refreshBatteryBadge();
+  }, BATTERY_REFRESH_MS);
   window.setInterval(() => {
     refreshOverlay(true);
   }, REFRESH_MS);
