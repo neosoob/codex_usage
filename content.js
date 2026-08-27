@@ -631,13 +631,11 @@ function createOverlay() {
         </div>
       </div>
       <div class="cu-mini-wrap">
-        <!-- 暂不展示 5h 使用限额
         <div class="cu-mini">
           <span class="cu-label">5h</span>
           <span class="cu-remaining" id="cu-short-mini">--</span>
           <span class="cu-reset" id="cu-short-mini-reset">--</span>
         </div>
-        -->
         <div class="cu-mini">
           <span class="cu-label">Weekly</span>
           <span class="cu-remaining" id="cu-weekly-mini">--</span>
@@ -646,13 +644,11 @@ function createOverlay() {
       </div>
       <div class="cu-details">
         <div class="cu-details-inner">
-          <!-- 暂不展示 5 小时使用限额
           <div class="cu-row">
             <span class="cu-label">5 小时使用限额</span>
             <span class="cu-remaining" id="cu-short">--</span>
             <span class="cu-reset" id="cu-short-reset">--</span>
           </div>
-          -->
           <div class="cu-row">
             <span class="cu-label">每周使用限额</span>
             <span class="cu-remaining" id="cu-weekly">--</span>
@@ -742,36 +738,36 @@ function updateOverlay(snapshot, errorMessage) {
   }
 
   const root = createOverlay();
-  // const shortMini = root.querySelector("#cu-short-mini");
+  const shortMini = root.querySelector("#cu-short-mini");
   const weeklyMini = root.querySelector("#cu-weekly-mini");
-  // const shortMiniReset = root.querySelector("#cu-short-mini-reset");
+  const shortMiniReset = root.querySelector("#cu-short-mini-reset");
   const weeklyMiniReset = root.querySelector("#cu-weekly-mini-reset");
-  // const short = root.querySelector("#cu-short");
+  const short = root.querySelector("#cu-short");
   const weekly = root.querySelector("#cu-weekly");
-  // const shortReset = root.querySelector("#cu-short-reset");
+  const shortReset = root.querySelector("#cu-short-reset");
   const weeklyReset = root.querySelector("#cu-weekly-reset");
   const foot = root.querySelector("#cu-foot");
 
   if (errorMessage) {
-    // shortMini.textContent = "--";
+    shortMini.textContent = "--";
     weeklyMini.textContent = "--";
-    // shortMiniReset.textContent = "--";
+    shortMiniReset.textContent = "--";
     weeklyMiniReset.textContent = "--";
-    // short.textContent = "--";
+    short.textContent = "--";
     weekly.textContent = "--";
-    // shortReset.textContent = "--";
+    shortReset.textContent = "--";
     weeklyReset.textContent = "--";
     foot.textContent = errorMessage;
     return;
   }
 
-  // shortMini.textContent = snapshot.shortTerm.remaining || "--";
+  shortMini.textContent = snapshot.shortTerm.remaining || "--";
   weeklyMini.textContent = snapshot.weekly.remaining || "--";
-  // shortMiniReset.textContent = formatTimeReset(snapshot.shortTerm.resetAt);
+  shortMiniReset.textContent = formatTimeReset(snapshot.shortTerm.resetAt);
   weeklyMiniReset.textContent = formatDateReset(snapshot.weekly.resetAt);
-  // short.textContent = snapshot.shortTerm.remaining || "--";
+  short.textContent = snapshot.shortTerm.remaining || "--";
   weekly.textContent = snapshot.weekly.remaining || "--";
-  // shortReset.textContent = snapshot.shortTerm.resetAt || "--";
+  shortReset.textContent = snapshot.shortTerm.resetAt || "--";
   weeklyReset.textContent = formatDetailReset(snapshot.weekly.resetAt);
   foot.textContent = `更新于 ${new Date(snapshot.scannedAt).toLocaleString("zh-CN")}`;
 }
