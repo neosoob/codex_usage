@@ -1,4 +1,4 @@
-﻿const USAGE_URL = "https://chatgpt.com/codex/settings/usage";
+﻿const USAGE_URL = "https://chatgpt.com/codex/cloud/settings/analytics#usage";
 const STORAGE_KEY = "codexUsageSnapshot";
 const CACHE_MS = 60 * 1000;
 const REFRESH_MS = 5 * 60 * 1000;
@@ -221,7 +221,9 @@ async function fetchUsageSnapshotFromIframe(forceRefresh) {
   const iframe = getOrCreateIframe();
 
   if (forceRefresh) {
-    iframe.src = `${USAGE_URL}?_=${Date.now()}`;
+    const refreshUrl = new URL(USAGE_URL);
+    refreshUrl.searchParams.set("_", Date.now().toString());
+    iframe.src = refreshUrl.href;
   }
 
   const snapshot = await waitForUsageDom(iframe, IFRAME_TIMEOUT_MS);
@@ -252,7 +254,9 @@ async function fetchUsageSnapshot(forceRefresh = false) {
 }
 
 function isChatPage() {
-  return location.hostname.endsWith("chatgpt.com") && !location.pathname.startsWith("/codex/settings/usage");
+  return location.hostname.endsWith("chatgpt.com") &&
+    !location.pathname.startsWith("/codex/cloud/settings/analytics") &&
+    !location.pathname.startsWith("/codex/settings/usage");
 }
 
 function formatTimeReset(value) {
