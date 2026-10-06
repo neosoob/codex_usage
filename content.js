@@ -1,4 +1,4 @@
-﻿const USAGE_URL = "https://chatgpt.com/codex/cloud/settings/analytics#usage";
+﻿const USAGE_URL = "https://chatgpt.com/settings/usage?tab=overview";
 const STORAGE_KEY = "codexUsageSnapshot";
 const CACHE_MS = 60 * 1000;
 const REFRESH_MS = 5 * 60 * 1000;
@@ -33,6 +33,22 @@ function parseResetFromText(text) {
   return match ? normalizeSpace(match[1]) : null;
 }
 
+function parseResetFromCard(card) {
+  const resetNode = Array.from(card.querySelectorAll("[title]"))
+    .find((node) => /重置|reset/i.test(node.textContent || ""));
+  const resetTitle = normalizeSpace(resetNode?.getAttribute("title"));
+  if (resetTitle) {
+    const date = resetTitle.match(/\d{4}年\d{1,2}月\d{1,2}日/);
+    const time = resetTitle.match(/\d{1,2}:\d{2}(?::\d{2})?/);
+    return date && time ? `${date[0]} ${time[0]}` : resetTitle;
+  }
+
+  const resetText = Array.from(card.querySelectorAll("span, p"))
+    .map((node) => normalizeSpace(node.textContent))
+    .find((value) => /后重置$|^resets?\s+in\b/i.test(value));
+  return resetText || parseResetFromText(card.textContent || "");
+}
+
 function parseCard(article, label) {
   if (!article) {
     return {
@@ -47,16 +63,41 @@ function parseCard(article, label) {
   const percentNode = Array.from(article.querySelectorAll("span, strong, div"))
     .map((node) => normalizeSpace(node.textContent || ""))
     .find((value) => /^\d+(?:\.\d+)?%$/.test(value));
+  const progress = article.querySelector("progress[value]");
+  const progressValue = Number(progress?.getAttribute("value"));
+  const progressMax = Number(progress?.getAttribute("max") || 1);
+  const progressRemaining = progress && Number.isFinite(progressValue) && progressMax > 0
+    ? `${Number((progressValue / progressMax * 100).toFixed(2))}%`
+    : null;
 
   return {
     label,
-    remaining: percentNode || parseRemainingFromText(text),
-    resetAt: parseResetFromText(text),
+    remaining: progressRemaining || percentNode || parseRemainingFromText(text),
+    resetAt: parseResetFromCard(article),
     lines: splitLines(article.textContent || "")
   };
 }
 
 function findCardByTitle(doc, pattern) {
+  // Current settings use nested div rows instead of article cards. Stop at
+  // the smallest ancestor with one progress bar to keep the limits separate
+  // and avoid matching the identically titled historical usage tables.
+  const titles = Array.from(doc.querySelectorAll("div, p, span, h2, h3"))
+    .filter((node) => pattern.test(normalizeSpace(node.textContent)));
+  for (const title of titles) {
+    let card = title.parentElement;
+    while (card && card !== doc.body && card !== doc.documentElement) {
+      const progressCount = card.querySelectorAll("progress").length;
+      if (progressCount === 1) {
+        return card;
+      }
+      if (progressCount > 1 || card.matches("section, article")) {
+        break;
+      }
+      card = card.parentElement;
+    }
+  }
+
   const articles = Array.from(doc.querySelectorAll("article"));
   return articles.find((article) => {
     const titleNode = article.querySelector("p");
@@ -66,8 +107,8 @@ function findCardByTitle(doc, pattern) {
 }
 
 function parseUsageDocument(doc) {
-  const shortCard = findCardByTitle(doc, /^(?:5\s*小时使用限额|5-hour usage limit|5 hour usage limit)$/i);
-  const weeklyCard = findCardByTitle(doc, /^(?:每周使用限额|weekly usage limit)$/i);
+  const shortCard = findCardByTitle(doc, /^(?:5\s*小时(?:使用)?限额|5[-\s]hour (?:usage )?limit)$/i);
+  const weeklyCard = findCardByTitle(doc, /^(?:每周(?:使用)?限额|weekly (?:usage )?limit)$/i);
 
   const shortTerm = parseCard(shortCard, "5h");
   const weekly = parseCard(weeklyCard, "Weekly");
@@ -189,7 +230,9 @@ function waitForUsageDom(iframe, timeoutMs) {
         observer.observe(iframeDoc.documentElement, {
           childList: true,
           subtree: true,
-          characterData: true
+          characterData: true,
+          attributes: true,
+          attributeFilter: ["value", "max", "title"]
         });
       } catch (error) {
         settled = true;
@@ -255,6 +298,7 @@ async function fetchUsageSnapshot(forceRefresh = false) {
 
 function isChatPage() {
   return location.hostname.endsWith("chatgpt.com") &&
+    !location.pathname.startsWith("/settings/usage") &&
     !location.pathname.startsWith("/codex/cloud/settings/analytics") &&
     !location.pathname.startsWith("/codex/settings/usage");
 }
@@ -265,9 +309,11 @@ function formatTimeReset(value) {
   }
 
   const normalized = normalizeSpace(value);
-  const shortTimeMatch = normalized.match(/(\d{1,2}:\d{2}(?:\s*[AP]M)?)$/i);
+  const shortTimeMatch = normalized.match(/(?:^|[^\d:])(\d{1,2}:\d{2})(?::\d{2})?(?:\s*([AP]M))?$/i);
   if (shortTimeMatch) {
-    return shortTimeMatch[1].toUpperCase();
+    return shortTimeMatch[2]
+      ? `${shortTimeMatch[1]} ${shortTimeMatch[2].toUpperCase()}`
+      : shortTimeMatch[1];
   }
 
   return normalized;
@@ -771,7 +817,7 @@ function updateOverlay(snapshot, errorMessage) {
   weeklyMiniReset.textContent = formatDateReset(snapshot.weekly.resetAt);
   short.textContent = snapshot.shortTerm.remaining || "--";
   weekly.textContent = snapshot.weekly.remaining || "--";
-  shortReset.textContent = snapshot.shortTerm.resetAt || "--";
+  shortReset.textContent = formatDetailReset(snapshot.shortTerm.resetAt);
   weeklyReset.textContent = formatDetailReset(snapshot.weekly.resetAt);
   foot.textContent = `更新于 ${new Date(snapshot.scannedAt).toLocaleString("zh-CN")}`;
 }

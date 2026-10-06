@@ -1,6 +1,6 @@
 ﻿# Codex Usage Checker
 
-一个 Chrome / Edge 扩展，用来在当前登录态下读取 `https://chatgpt.com/codex/cloud/settings/analytics#usage` 的 Codex 余额，并在聊天页右下角显示缩略信息。
+一个 Chrome / Edge 扩展，用来在当前登录态下读取 `https://chatgpt.com/settings/usage?tab=overview` 的 Codex 余额，并在聊天页右下角显示缩略信息。
 
 ## 当前实现
 
